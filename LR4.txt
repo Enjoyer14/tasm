@@ -1,0 +1,75 @@
+.model small
+.stack 100h
+.data
+a dw ?
+b dw ?
+c dw ?
+x dw ?
+menumsg1 db "1. F = -a*x^3 - b $"
+menumsg2 db "2. F = (x-a)/(x-c) $"
+menumsg3 db "3. F = x/c + c/x $"
+inputmsg db "Choice: $"
+inputch db ?
+.code
+start:
+	mov ax, @data
+	mov ds, ax
+    
+	; Вывод приглашения ко вводу
+	mov ah, 09h
+	lea dx, prompt
+	int 21h
+
+	mov ah, 2   ; установка курсора
+	mov dh, 10   ; строка
+	mov dl, 24  ; столбец
+	mov bh, 0   ; страница
+	int 10h
+
+	mov ah, 09h
+	mov dx, offset menumsg1
+	int 21h
+
+	mov ah, 2
+	mov dh, 11
+	mov dl, 24
+	mov bh, 0
+	int 10h
+
+	mov ah, 09h
+	mov dx, offset menumsg2
+	int 21h
+
+	mov ah, 2
+	mov dh, 12
+	mov dl, 24
+	mov bh, 0
+	int 10h
+
+	mov ah, 09h
+	mov dx, offset menumsg3
+	int 21h
+
+	mov ah, 2
+	mov dh, 13
+	mov dl, 24
+	mov bh, 0
+	int 10h
+
+	mov ah, 09h
+	mov dx, offset inputmsg
+	int 21h
+
+	; Ввод символа
+	mov ah, 01h
+ 	int 21h
+	mov inputch, al
+
+	; Вывод введенного символа
+	mov dl, inputch        ; Загружаем введённый символ в DL
+	mov ah, 02h               ; Функция 02h для вывода одного символа
+	int 21h
+
+	mov ax, 4c00h
+	int 21h
+end start

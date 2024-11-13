@@ -1,0 +1,30 @@
+.model small
+.stack 100h
+.data
+A db 10d
+B db 6d
+C db 18d
+D db 5d
+
+res1 dw ?
+res2 dw ?
+.code
+start:
+	mov ax, @data
+	mov ds, ax
+
+	mov bl, B
+	mov al, 15
+	sub al, bl
+
+	mul C ; ax = ax*C
+	
+	mov bl, A
+	add ax, bl
+
+	mov res1, ax
+
+	mov ax, 4c00h
+	int 21h
+end start
+end

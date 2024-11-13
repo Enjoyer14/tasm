@@ -1,0 +1,73 @@
+.model small
+.stack 100h
+.data
+    line1 db 'Line 1 centered', 0
+    line2 db 'Line 2 centered', 0
+    line3 db 'Line 3 centered', 0
+.code
+main:
+    mov ax, @data
+    mov ds, ax
+
+    ; Установка видео режима 03h (текстовый режим 80x25)
+    mov ah, 0
+    mov al, 03h
+    int 10h
+
+    ; Установка синего фона и белого текста на весь экран
+    mov ax, 0600h          ; Прокрутка экрана (AH=06h), AL=00h (не прокручивать)
+    mov bh, 17h            ; Синий фон (1), белый текст (7) -> 17h
+    mov cx, 0              ; Верхний левый угол экрана (00,00)
+    mov dx, 184fh          ; Нижний правый угол экрана (24,79)
+    int 10h
+
+    ; Первая строка (вычисляем центр экрана, 40-й столбец - середина)
+    mov ah, 02h            ; Установить курсор
+    mov bh, 0              ; Страница 0
+    mov dh, 11             ; Строка 12 (вертикальная середина экрана)
+    mov dl, 32             ; Столбец 40 (горизонтальная середина минус половина длины строки)
+    int 10h
+    lea dx, line1
+    call print_string_color
+
+    ; Вторая строка
+    mov ah, 02h
+    mov dh, 12             ; Строка 13
+    mov dl, 32
+    int 10h
+    lea dx, line2
+    call print_string_color
+
+    ; Третья строка
+    mov ah, 02h
+    mov dh, 13             ; Строка 14
+    mov dl, 32
+    int 10h
+    lea dx, line3
+    call print_string_color
+
+    ; Ожидание нажатия клавиши для завершения программы
+    mov ah, 00h
+    int 16h
+
+    ; Завершение программы
+    mov ah, 4Ch
+    int 21h
+
+print_string_color:
+    mov ah, 0Ah            ; Функция вывода символов с атрибутом
+    mov bh, 0              ; Страница 0
+    mov bl, 17h            ; Атрибут: белый текст на синем фоне (1-синий фон, 7-белый текст)
+next_char_color:
+    lodsb                  ; Загружаем следующий символ из строки
+    cmp al, 0              ; Проверяем конец строки
+    je done_color
+    int 10h                ; Выводим символ с цветом
+    jmp next_char_color
+done_color:
+    ret
+
+end main
+
+mov ax, 03 ; очищает консоль
+	int 10h

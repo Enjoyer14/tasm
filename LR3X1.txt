@@ -1,0 +1,47 @@
+.model small
+.stack 100h
+.data
+X1 db 59
+X2 db 8Dh
+X3 db 245
+A db 44
+B db 29h
+C db 7
+D db 3
+
+Sum db 0
+Raz db 0
+Pr dw 1
+Ost db ?
+Chas db ?
+
+.code
+start:
+	mov ax, @data
+	mov ds, ax
+
+	;X2
+	mov ax, 0
+	mov al, X2 ;заносим значение Х1 в al 
+	sub al, A ; al = al(X1) - A
+	mov Raz, al ; заносим ответ в Raz
+	
+	add al, B ; al = al + B
+	mov Sum, al 
+
+	mul C ; AX = AX * BL
+	mov Pr, ax        
+
+	mov bx, D
+	div bx ; Делим AX на D
+	mov Chas, al ; Сохраняем целую часть в Chas
+	mov Ost, ah ; Сохраняем остаток в Ost
+
+	inc ax ; al++
+	dec ah ; ah--
+
+
+	mov ax, 4c00h
+	int 21h
+end start
+end

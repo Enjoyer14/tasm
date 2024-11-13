@@ -1,0 +1,239 @@
+mReadAX macro buffer, size
+	local input, startOfConvert, endOfConvert
+	push bx
+	push cx
+	push dx
+
+input:
+	mov [buffer], size
+	mov dx, offset [offset]
+	mov ah, 0Ah
+	int 21h
+
+	mov ah, 02h
+	mov dl, 0Dh
+	int 21h
+	
+	mov ah, 02h
+	mov dl, 0Ah
+	int 21h
+
+	xor ah, ah
+	cmp ah, [buffer][1]
+	jz input
+
+	xor cx, cx
+	mov cl, [buffer][1]
+
+	xor ax, ax
+	xor bx, bx
+	xor dx, dx
+	mov bx, offset [buffer][2]
+
+	cmp [buffer][2], '-'
+	jne startOfConvert
+	inc bx
+	dec cl
+
+startOfConvert:
+	mov dx, 10
+	mul dx
+	cmp ax, 8000h
+	jae input
+
+	mov dl, [bx]
+	sub dl, '0'
+
+	add ax, dx
+	cmp ax, 8000h
+	jae input
+
+	inc bx
+	loop startOfConvert
+
+	cmp [buffer][2], '-'
+	jne endOfConvert
+	neg ax
+
+endOfConvert:
+	pop dx
+	pop cx
+	pop bx
+endm
+
+mWriteAX macro
+local convert, write
+	push ax
+	push bx
+	push cx
+	push dx
+	push di
+
+	mov cx, 10
+	xor di, di
+
+	or ax, ax
+	jns convert   ;Переход, если число положительное 
+ 	push ax   ;Регистр ax в стек 
+ 
+	mov dx, '-'   ;Поместить в регистр dx символ '-' 
+ 	mov ah, 02h   ;Вывод символа на экран 
+ 	int 21h   ;Прерывание DOS 
+ 
+ 	pop ax    ;Регистр ax из стека 
+ 	neg ax    ;Инвертирование отрицательного числа  
+ 
+convert: 
+	xor dx, dx   ;Очистка регистра dx 
+ 
+ 	div cx    ;После деления dl = остатку от деления ax на cx 
+ 	add dl, '0'   ;Перевод в символьный формат 
+ 	inc di    ;Увеличение количества цифр в числе на 1 
+ 	
+	push dx   ;Регистр dx в стек 
+
+	or ax, ax   ;Проверка числа на ноль 
+	jnz convert   ;Переход, если число не равно нулю 
+ 
+write: 
+	pop dx    ;dl = очередной символ 
+ 
+	mov ah, 02h   ;Вывод символа на экран 
+	int 21h   ;Прерывание DOS 
+	dec di    ;Повторение, пока di != 0 
+	jnz write  
+ 
+	pop di    ;Данные из стека 
+	pop dx 
+	pop cx 
+	pop bx 
+	pop ax 
+endm  
+
+printstr macro msg
+	push ax
+	push dx
+
+	mov ah, 09h
+	mov dx, msg
+	int 21h
+
+	pop dx
+	pop ax
+endm
+
+.model small
+.stack 100h
+.data
+strA db "enter x1: $"
+strB db "enter x2: $"
+strC db "enter x3: $"
+strRes db "res = $"
+buff db ?
+X1 db ?
+X2 db ?
+X3 db ?
+A db 44
+B db 29h
+C db 7
+D db 3
+
+Sum db 0
+Raz db 0
+Pr dw 1
+Ost db ?
+Chas db ?
+
+.code
+start:
+	mov ax, @data
+	mov ds, ax
+
+	xor ax, ax
+	print strA
+	mReadAX10 buff, 2
+	mov X1, ax
+	
+	xor ax, ax
+	print strB
+	mReadAX10 buff, 2
+	mov X2, ax
+
+	xor ax, ax
+	print str
+	mReadAX10 buff, 2
+	mov X3, ax
+
+	;X1
+	mov al, X1 ;заносим значение Х1 в al 
+	sub al, A ; al = al(X1) - A
+	mov Raz, al ; заносим ответ в Raz
+	
+	add al, B ; al = al + B
+	mov Sum, al 
+
+	mul C ; ax = ax*C
+	mov Pr, ax
+	
+	div D ; ax = ax/D
+	mov Chas, al ; результат деления в ax, в al - целая часть , в ah - остаток от деления
+	mov Ost, ah 
+
+	inc al ; al++
+	dec ah ; ah--
+
+	mov bx, offset strRes
+	printstr bx
+
+	mWriteAX
+
+	;X2
+	mov al, X2 ;заносим значение Х1 в al 
+	sub al, A ; al = al(X1) - A
+	mov Raz, al ; заносим ответ в Raz
+	
+	add al, B ; al = al + B
+	mov Sum, al 
+
+	mul C ; ax = ax*C
+	mov Pr, ax
+	
+	div D ; ax = ax/D
+	mov Chas, al ; результат деления в ax, в al - целая часть , в ah - остаток от деления
+	mov Ost, ah 
+
+	inc al ; al++
+	dec ah ; ah--
+
+	mov bx, offset strRes
+	printstr bx
+
+	mWriteAX
+
+	;X3
+	mov al, X3 ;заносим значение Х1 в al 
+	sub al, A ; al = al(X1) - A
+	mov Raz, al ; заносим ответ в Raz
+	
+	add al, B ; al = al + B
+	mov Sum, al 
+
+	mul C ; ax = ax*C
+	mov Pr, ax
+	
+	div D ; ax = ax/D
+	mov Chas, al ; результат деления в ax, в al - целая часть , в ah - остаток от деления
+	mov Ost, ah 
+
+	inc al ; al++
+	dec ah ; ah--
+
+	mov bx, offset strRes
+	printstr bx
+
+	mWriteAX
+
+	mov ax, 4c00h
+	int 21h
+end start
+end
