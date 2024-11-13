@@ -348,12 +348,75 @@ NOJUMPS
 endm
 
 
-mIsAlternatesSigns macro matr, row, col
-local
+mIsAlternatesSigns macro matr, row, col, inputRow, foundNegative
+local colLoop, negative, makeNeg, positive, makePos, nextIter, exit, falseExit
 JUMPS
+    push ax       ; Сохранение регистров, используемых в макросе, в стек 
+    push bx 
+    push cx 
+    push si 
 
+    xor bx, bx    ; Обнуляем смещение по строкам 
+    mov ax, inputRow   ; Загружаем номер строки в регистр ax
+    imul col         ; Умножаем на количество столбцов, получаем смещение
+    add ax, si         ; Добавляем индекс столбца
+    mov bx, ax
+
+    xor si, si    ; Обнуляем смещение по столбцам 
+    mov cx, col 
+    mov foundNegative, 0  ; Сбрасываем флаг чередования
+
+colLoop:                    ; Внутренний цикл, проходящий по столбцам 
+    mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
+    or ax, ax
+    js negative           ; Если число отрицательное, переходим к метке negative
+    jmp positive           ; Если число положительное, переходим к метке positive
+
+negative:
+    cmp foundNegative, 0   ; Если первый элемент, запоминаем его как отрицательное
+    jge makeNeg            ; Если еще не встретили отрицательное, устанавливаем флаг
+    cmp foundNegative, 1   ; Если предыдущий элемент был положительным, а текущий отрицателен
+    je nextIter            ; Если чередование знаков соблюдается, идем к следующему элементу
+    jmp falseExit          ; Если знаки не чередуются, выводим false и выходим
+
+makeNeg:
+    mov foundNegative, -1  ; Устанавливаем флаг для отрицательного числа
+    jmp nextIter
+
+positive:
+    cmp foundNegative, 0   ; Если первый элемент, запоминаем его как положительное
+    jle makePos            ; Если еще не встретили положительное, устанавливаем флаг
+    cmp foundNegative, -1  ; Если предыдущий элемент был отрицательным, а текущий положителен
+    je nextIter            ; Если чередование знаков соблюдается, идем к следующему элементу
+    jmp falseExit          ; Если знаки не чередуются, выводим false и выходим
+
+makePos:
+    mov foundNegative, 1   ; Устанавливаем флаг для положительного числа
+    jmp nextIter
+
+nextIter:
+    add si, 2         ; Переходим к следующему элементу (размером в слово) 
+    loop colLoop 
+
+    ; Если чередование знаков не нарушилось, выводим true
+    mov bx, offset sTrue
+    printstr bx
+    jmp exit
+
+falseExit:
+    ; Если знаки не чередуются, выводим false
+    mov bx, offset sFalse
+    printstr bx
+
+exit:
+    pop si            ; Перенос сохранённых значений обратно в регистры  
+    pop cx 
+    pop bx 
+    pop ax 
 NOJUMPS
 endm
+
+
 
 mFindFirstNonZero macro matr, row, col
 local
@@ -374,9 +437,13 @@ endl db 0Dh, 0Ah, '$'
 buffer db ?
 sTask1 db 'Transpose matrix: $'
 sMatr db 'Matrix: $'
-sTask2A db 'Summa(po strokam): '
+sTask2A db 'Summa(po strokam): $'
+sTask2b db 'Enter row: $'
+inputRow dw ?
 foundNegative db ?
 sum dw 0
+sTrue db 'True $'
+sFalse db 'False $'
 .code
 start:
 	mov ax, @data
@@ -408,6 +475,12 @@ start:
     printstr bx
 
     mSumAfterNeg matr, row, col, foundNegative
+
+    mov bx, offset sTask2b
+    printstr bx
+    mReadAX buffer, 3
+    mov inputRow, ax
+    mIsAlternatesSigns matr, row, col, inputRow, foundNegative
 
     mov ax, 4c00h
 	int 21h
