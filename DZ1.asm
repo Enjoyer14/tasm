@@ -417,12 +417,66 @@ exit:
 NOJUMPS
 endm
 
-
-
 mFindFirstNonZero macro matr, row, col
-local
+local rowLoop, colLoop, nextCol, nextRow
 JUMPS
+    push ax       ; Сохранение регистров, используемых в макросе, в стек 
+    push bx 
+    push cx 
+    push si
+    push di
+    push dx
+    xor bx, bx    ; Обнуляем смещение по строкам 
+    xor di, di    ; Счетчик строк
+    xor dx, dx   ; счетчик столбцов
+    mov cx, row 
+    mov di, -1
+    mov dx, -1
+rowLoop:          ; Внешний цикл, проходящий по строкам 
+    inc di
+    push cx  
+    xor si, si    ; Обнуляем смещение по столбцам 
+    mov cx, col 
+    mov dx, -1
+colLoop:                    ; Внутренний цикл, проходящий по столбцам \
+    inc dx
+    mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
+    cmp ax, 0
+    jne findNZero
+    jmp nextCol
 
+findNZero:
+    xor ax, ax
+    mov ax, bx
+    push cx
+
+    mov ax, di
+    mWriteAX
+
+    push bx
+    mov bx, offset tab
+    printstr bx
+    mov ax, dx
+    mWriteAX
+    mov bx, offset endl
+    printstr bx
+
+    pop bx
+    pop cx
+    jmp nextRow
+nextCol:
+    add si, 2         ; Переходим к следующему элементу (размером в слово) 
+    loop colLoop 
+nextRow:
+    add bx, col       ; Увеличиваем смещение по строкам  
+    add bx, col       ; (дважды, так как размер каждого элемента - слово) 
+    pop cx 
+    loop rowLoop 
+    pop di
+    pop si            ; Перенос сохранённых значений обратно в регистры  
+    pop cx 
+    pop bx 
+    pop ax 
 NOJUMPS
 endm
 
@@ -440,6 +494,7 @@ sTask1 db 'Transpose matrix: $'
 sMatr db 'Matrix: $'
 sTask2A db 'Summa(po strokam): $'
 sTask2b db 'Enter row: $'
+sTask2c db 'Index of first non zero elemnt: $'
 inputRow dw ?
 foundNegative db ?
 sum dw 0
@@ -482,6 +537,14 @@ start:
     mReadAX buffer, 3
     mov inputRow, ax
     mIsAlternatesSigns matr, row, col, inputRow, foundNegative
+
+    mov bx, offset endl
+    printstr bx
+    mov bx, offset sTask2c
+    printstr bx
+    mov bx, offset endl
+    printstr bx
+    mFindFirstNonZero matr, row, col
 
     mov ax, 4c00h
 	int 21h
