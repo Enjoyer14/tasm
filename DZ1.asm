@@ -431,13 +431,12 @@ JUMPS
     xor dx, dx   ; счетчик столбцов
     mov cx, row 
     mov di, -1
-    mov dx, -1
 rowLoop:          ; Внешний цикл, проходящий по строкам 
     inc di
     push cx  
     xor si, si    ; Обнуляем смещение по столбцам 
+    xor dx, dx
     mov cx, col 
-    mov dx, -1
 colLoop:                    ; Внутренний цикл, проходящий по столбцам \
     inc dx
     mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
@@ -447,22 +446,21 @@ colLoop:                    ; Внутренний цикл, проходящи�
 
 findNZero:
     xor ax, ax
-    mov ax, bx
-    push cx
-
     mov ax, di
     mWriteAX
 
     push bx
     mov bx, offset tab
     printstr bx
+
+    xor ax, ax
     mov ax, dx
     mWriteAX
+
     mov bx, offset endl
     printstr bx
 
     pop bx
-    pop cx
     jmp nextRow
 nextCol:
     add si, 2         ; Переходим к следующему элементу (размером в слово) 
@@ -472,6 +470,7 @@ nextRow:
     add bx, col       ; (дважды, так как размер каждого элемента - слово) 
     pop cx 
     loop rowLoop 
+    pop dx
     pop di
     pop si            ; Перенос сохранённых значений обратно в регистры  
     pop cx 
