@@ -1,7 +1,11 @@
 printstr macro msg
+    push ax
+    push dx
 	mov ah, 09h
 	mov dx, msg
 	int 21h
+    pop dx
+    pop ax
 endm
 
 inputchr macro var
@@ -418,7 +422,7 @@ NOJUMPS
 endm
 
 mFindFirstNonZero macro matr, row, col
-local rowLoop, colLoop, nextCol, nextRow
+local rowLoop, colLoop, nextCol, nextRowб
 JUMPS
     push ax       ; Сохранение регистров, используемых в макросе, в стек 
     push bx 
@@ -431,21 +435,21 @@ JUMPS
     xor dx, dx   ; счетчик столбцов
     mov cx, row 
     mov di, -1
+    
 rowLoop:          ; Внешний цикл, проходящий по строкам 
     inc di
     push cx  
     xor si, si    ; Обнуляем смещение по столбцам 
-    xor dx, dx
-    mov cx, col 
-colLoop:                    ; Внутренний цикл, проходящий по столбцам \
-    inc dx
+    mov cx, col
+    mov dx, -1
+colLoop:                    ; Внутренний цикл, проходящий по столбцам \ 
     mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
+    inc dx
     cmp ax, 0
     jne findNZero
     jmp nextCol
 
 findNZero:
-    xor ax, ax
     mov ax, di
     mWriteAX
 
@@ -453,7 +457,6 @@ findNZero:
     mov bx, offset tab
     printstr bx
 
-    xor ax, ax
     mov ax, dx
     mWriteAX
 
@@ -536,6 +539,14 @@ start:
     mReadAX buffer, 3
     mov inputRow, ax
     mIsAlternatesSigns matr, row, col, inputRow, foundNegative
+    
+    mov bx, offset endl
+    printstr bx
+    mov bx, offset sMatr
+    printstr bx
+    mov bx, offset endl
+    printstr bx
+	mWriteMatrix matr, row, col
 
     mov bx, offset endl
     printstr bx
