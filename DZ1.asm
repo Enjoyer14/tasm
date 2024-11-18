@@ -9,9 +9,11 @@ printstr macro msg
 endm
 
 inputchr macro var
+    push ax
 	mov ah, 01h
 	int 21h
 	mov var, al
+    pop ax
 endm
 
 mAbs macro
@@ -422,65 +424,69 @@ NOJUMPS
 endm
 
 mFindFirstNonZero macro matr, row, col
-local rowLoop, colLoop, nextCol, nextRowб
+local rowLoop, colLoop, nextRow, nextCol, findNZero
 JUMPS
-    push ax       ; Сохранение регистров, используемых в макросе, в стек 
+    push ax 
     push bx 
     push cx 
     push si
     push di
     push dx
     xor bx, bx    ; Обнуляем смещение по строкам 
-    xor di, di    ; Счетчик строк
-    xor dx, dx   ; счетчик столбцов
-    mov cx, row 
+    xor si, si    ; Счетчик столбцов
+    xor di, di      ; счетчик строк
+    mov cx, col   ; Устанавливаем количество столбцов
     mov di, -1
-    
-rowLoop:          ; Внешний цикл, проходящий по строкам 
+colLoop:
     inc di
-    push cx  
-    xor si, si    ; Обнуляем смещение по столбцам 
-    mov cx, col
+    xor bx, bx    ;сбрасываем смещение по строкам
+    xor dx, dx    ;сбрасываем счетчик строк
     mov dx, -1
-colLoop:                    ; Внутренний цикл, проходящий по столбцам \ 
-    mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
-    inc dx
+    push cx       ; Сохраняем текущий счетчик столбцов
+    mov cx, row   ; Устанавливаем количество строк
+    
+rowLoop:
+    inc dx        
+    mov ax, matr[bx][si]
     cmp ax, 0
     jne findNZero
+    add bx, col
+    add bx, col
+    loop rowLoop
     jmp nextCol
 
 findNZero:
-    mov ax, di
-    mWriteAX
-
     push bx
+
+    mov ax, dx
+    mWriteAX
+    xor dx, dx
+    
     mov bx, offset tab
     printstr bx
 
-    mov ax, dx
+    mov ax, di
     mWriteAX
 
     mov bx, offset endl
     printstr bx
 
     pop bx
-    jmp nextRow
+    jmp nextCol
+
 nextCol:
-    add si, 2         ; Переходим к следующему элементу (размером в слово) 
+    pop cx   
+    add si, 2  
     loop colLoop 
-nextRow:
-    add bx, col       ; Увеличиваем смещение по строкам  
-    add bx, col       ; (дважды, так как размер каждого элемента - слово) 
-    pop cx 
-    loop rowLoop 
     pop dx
     pop di
-    pop si            ; Перенос сохранённых значений обратно в регистры  
+    pop si     
     pop cx 
     pop bx 
     pop ax 
 NOJUMPS
 endm
+
 
 .model small
 .stack 100h
