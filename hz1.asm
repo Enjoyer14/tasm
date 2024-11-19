@@ -8,14 +8,6 @@ printstr macro msg
     pop ax
 endm
 
-inputchr macro var
-    push ax
-	mov ah, 01h
-	int 21h
-	mov var, al
-    pop ax
-endm
-
 mAbs macro
     or ax, ax
     js  makePositive
@@ -353,141 +345,6 @@ skipSum:
 NOJUMPS
 endm
 
-
-mIsAlternatesSigns macro matr, row, col, inputRow, foundNegative
-local colLoop, negative, makeNeg, positive, makePos, nextIter, exit, falseExit
-JUMPS
-    push ax       ; Сохранение регистров, используемых в макросе, в стек 
-    push bx 
-    push cx 
-    push si 
-
-    xor bx, bx    ; Обнуляем смещение по строкам 
-    mov ax, inputRow   ; Загружаем номер строки в регистр ax
-    add bx, col
-    add bx, col
-    mul bx          ; Умножаем на количество столбцов, получаем смещение
-    mov bx, ax
-
-    xor si, si    ; Обнуляем смещение по столбцам 
-    mov cx, col 
-    mov foundNegative, 0  ; Сбрасываем флаг чередования
-
-colLoop:                    ; Внутренний цикл, проходящий по столбцам 
-    mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
-    or ax, ax
-    js negative           ; Если число отрицательное, переходим к метке negative
-    jmp positive           ; Если число положительное, переходим к метке positive
-
-negative:
-    cmp foundNegative, 0   ; Если первый элемент, запоминаем его как отрицательное
-    je makeNeg            ; Если еще не встретили отрицательное, устанавливаем флаг
-    cmp foundNegative, 1   ; Если предыдущий элемент был положительным, а текущий отрицателен
-    je makeNeg            ; Если чередование знаков соблюдается, идем к следующему элементу
-    jmp falseExit          ; Если знаки не чередуются, выводим false и выходим
-
-makeNeg:
-    mov foundNegative, -1  ; Устанавливаем флаг для отрицательного числа
-    jmp nextIter
-
-positive:
-    cmp foundNegative, 0   ; Если первый элемент, запоминаем его как положительное
-    je makePos            ; Если еще не встретили положительное, устанавливаем флаг
-    cmp foundNegative, -1  ; Если предыдущий элемент был отрицательным, а текущий положителен
-    je makePos            ; Если чередование знаков соблюдается, идем к следующему элементу
-    jmp falseExit          ; Если знаки не чередуются, выводим false и выходим
-
-makePos:
-    mov foundNegative, 1   ; Устанавливаем флаг для положительного числа
-    jmp nextIter
-
-nextIter:
-    add si, 2         ; Переходим к следующему элементу (размером в слово) 
-    loop colLoop 
-
-    ; Если чередование знаков не нарушилось, выводим true
-    mov bx, offset sTrue
-    printstr bx
-    jmp exit
-
-falseExit:
-    ; Если знаки не чередуются, выводим false
-    mov bx, offset sFalse
-    printstr bx
-
-exit:
-    pop si            ; Перенос сохранённых значений обратно в регистры  
-    pop cx 
-    pop bx 
-    pop ax 
-NOJUMPS
-endm
-
-mFindFirstNonZero macro matr, row, col
-local rowLoop, colLoop, nextRow, nextCol, findNZero
-JUMPS
-    push ax 
-    push bx 
-    push cx 
-    push si
-    push di
-    push dx
-    xor bx, bx    ; Обнуляем смещение по строкам 
-    xor si, si    ; Счетчик столбцов
-    xor di, di      ; счетчик строк
-    mov cx, col   ; Устанавливаем количество столбцов
-    mov di, -1
-colLoop:
-    inc di
-    xor bx, bx    ;сбрасываем смещение по строкам
-    xor dx, dx    ;сбрасываем счетчик строк
-    mov dx, -1
-    push cx       ; Сохраняем текущий счетчик столбцов
-    mov cx, row   ; Устанавливаем количество строк
-    
-rowLoop:
-    inc dx        
-    mov ax, matr[bx][si]
-    cmp ax, 0
-    jne findNZero
-    add bx, col
-    add bx, col
-    loop rowLoop
-    jmp nextCol
-
-findNZero:
-    push bx
-
-    mov ax, dx
-    mWriteAX
-    xor dx, dx
-    
-    mov bx, offset tab
-    printstr bx
-
-    mov ax, di
-    mWriteAX
-
-    mov bx, offset endl
-    printstr bx
-
-    pop bx
-    jmp nextCol
-
-nextCol:
-    pop cx   
-    add si, 2  
-    loop colLoop 
-    pop dx
-    pop di
-    pop si     
-    pop cx 
-    pop bx 
-    pop ax 
-NOJUMPS
-endm
-
-
 .model small
 .stack 100h
 .data
@@ -501,13 +358,8 @@ buffer db ?
 sTask1 db 'Transpose matrix: $'
 sMatr db 'Matrix: $'
 sTask2A db 'Summa(po strokam): $'
-sTask2b db 'Enter row: $'
-sTask2c db 'Index of first non zero elemnt: $'
-inputRow dw ?
 foundNegative db ?
 sum dw 0
-sTrue db 'True $'
-sFalse db 'False $'
 .code
 start:
 	mov ax, @data
@@ -515,53 +367,30 @@ start:
 
 	wipescreen
 
-	setcursor 0, 0, 0, 0
-
 	mReadMatrix matr, row, col
 
-    mov bx, offset sMatr
-    printstr bx
-    mov bx, offset endl
-    printstr bx
+   	mov bx, offset sMatr
+    	printstr bx
+    	mov bx, offset endl
+    	printstr bx
 	mWriteMatrix matr, row, col
 
-    mov bx, offset sTask1
-    printstr bx
-    mov bx, offset endl
-    printstr bx
+    	mov bx, offset sTask1
+    	printstr bx
+    	mov bx, offset endl
+    	printstr bx
 	mTransposeMatrix matr, row, col, tMatr
 	
 	mWriteMatrix tMatr, row, col
 
-    mov bx, offset sTask2A
-    printstr bx
-    mov bx, offset endl
-    printstr bx
+    	mov bx, offset sTask2A
+    	printstr bx
+    	mov bx, offset endl
+    	printstr bx
 
-    mSumAfterNeg matr, row, col, foundNegative
+    	mSumAfterNeg matr, row, col, foundNegative
 
-    mov bx, offset sTask2b
-    printstr bx
-    mReadAX buffer, 3
-    mov inputRow, ax
-    mIsAlternatesSigns matr, row, col, inputRow, foundNegative
     
-    mov bx, offset endl
-    printstr bx
-    mov bx, offset sMatr
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mWriteMatrix matr, row, col
-
-    mov bx, offset endl
-    printstr bx
-    mov bx, offset sTask2c
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-    mFindFirstNonZero matr, row, col
-
-    mov ax, 4c00h
+    	mov ax, 4c00h
 	int 21h
 end start
