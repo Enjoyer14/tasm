@@ -449,7 +449,7 @@ rowLoop:
     inc dx        
     mov ax, matr[bx][si]
     cmp ax, 0
-    jne findNZero
+    je findNZero
     add bx, col
     add bx, col
     loop rowLoop
@@ -498,7 +498,7 @@ col dw 5d
 tab db '	$'
 endl db 0Dh, 0Ah, '$'
 buffer db ?
-sTask1 db 'Transpose matrix: $'
+sTask1 db ' Transpose matrix: $'
 sMatr db 'Matrix: $'
 sTask2A db 'Summa(po strokam): $'
 sTask2b db 'Enter row: $'
