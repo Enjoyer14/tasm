@@ -1,18 +1,10 @@
 printstr macro msg
-    push ax
+    push ax               ; Сохраняем регистры AX и DX
     push dx
-	mov ah, 09h
-	mov dx, msg
-	int 21h
-    pop dx
-    pop ax
-endm
-
-inputchr macro var
-    push ax
-	mov ah, 01h
-	int 21h
-	mov var, al
+    lea dx, msg           ; Загружаем адрес строки в DX
+    mov ah, 09h           ; Функция DOS для вывода строки
+    int 21h               ; Вызов DOS-прерывания
+    pop dx                ; Восстанавливаем регистры DX и AX
     pop ax
 endm
 
@@ -194,18 +186,12 @@ colLoop:                    ; Внутренний цикл, проходящи�
     mWriteAX      ; Макрос вывода значения регистра AX на экран [Приложение 2] 
                   ; Вывод текущего элемента матрицы 
     xor ax, ax 
-    push bx
-    mov bx, offset tab
-    printstr bx ; Макрос вывода строки на экран Приложение 3
-    pop bx         ; Вывод на экран табуляции, разделяющей элементы строки 
- 
+    printstr tab; Макрос вывода строки на экран Приложение 3
+
     add si, 2         ; Переходим к следующему элементу (размером в слово) 
     loop colLoop 
     
-    push bx
-    mov bx, offset endl
-    printstr bx   ; Макрос вывода строки на экран Приложение 3
-    pop bx                  ; Перенос курсора и каретки на следующую строку 
+    printstr endl   ; Макрос вывода строки на экран Приложение 3                ; Перенос курсора и каретки на следующую строку 
     
     add bx, col       ; Увеличиваем смещение по строкам  
     add bx, col       ; (дважды, так как размер каждого элемента - слово) 
@@ -267,23 +253,6 @@ colLoop:                  ; Внутренний цикл, проходящий 
     pop ax 
 endm
 
-
-setcursor macro var1, var2, var3, var4
-	push ax
-	push dx
-	push bx
-	
-	mov ah, var1 установка курсора
-	mov dh, var2 строка
-	mov dl, var3 ;столбец
-	mov bh, var4   ; страница
-	int 10h
-
-	pop bx
-	pop dx
-	pop ax
-endm
-
 wipescreen macro
 	push ax
 	push bx
@@ -307,22 +276,22 @@ JUMPS
     push bx 
     push cx 
     push si 
-    push di      ; Для хранения суммы
-    xor bx, bx    ; Обнуляем смещение по строкам 
+    push di
+    xor bx, bx
     mov cx, row 
 rowLoop:
     push cx  
     mov foundNegative, 0  ; сбрасываем флаг нахождения отрицательного
-    xor si, si    ; Обнуляем смещение по столбцам 
+    xor si, si    ; обнуляем смещение по столбцам 
     mov cx, col
-    xor di, di    ; Обнуляем сумму для текущей строки
+    xor di, di    ; обнуляем сумму для текущей строки
 colLoop: 
     mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
-    cmp ax, 0      ; Проверяем, отрицательное ли число
-    jl foundNeg    ; Если отрицательное переходим к обработке
+    cmp ax, 0      ;Проверяем отрицательное ли число
+    jl foundNeg    ;если отрицательное то обрабатываем
     cmp foundNegative, 0    ; проверка флага на отрицательность 
     je skipSum
-    jmp sumLoop ; Если нашли отрицательное, начинаем суммировать модули чисел после первого отрицательного
+    jmp sumLoop ; Если нашли отрицательное 
 foundNeg:
     cmp foundNegative, 1 ; проверка флага на отрицательность 
     je sumLoop
@@ -331,21 +300,18 @@ foundNeg:
 sumLoop:
     mov ax, matr[bx][si]
     mAbs  ; модуль
-    add di, ax          ; Добавляем к сумме
+    add di, ax          ;Добавляем элемент к сумме
 skipSum:
-    add si, 2           ; Переходим к следующему элементу (размером в слово) 
+    add si, 2
     loop colLoop 
     mov ax, di  
-    mWriteAX ; Вывод суммы для текущей строки
-    add bx, col         ; Увеличиваем смещение по строкам; Переход к следующей строке  
-    add bx, col         ; (дважды, так как размер каждого элемента - слово) 
-    push bx
-    mov bx, offset endl
-    printstr bx      ; Перенос строки
-    pop bx
+    mWriteAX    ;вывод суммы для текущей строки
+    add bx, col
+    add bx, col
+    printstr endl
     pop cx 
     loop rowLoop 
-    pop si              ; Перенос сохранённых значений обратно в регистры  
+    pop si   
     pop di
     pop cx 
     pop bx 
@@ -353,140 +319,169 @@ skipSum:
 NOJUMPS
 endm
 
-
-mIsAlternatesSigns macro matr, row, col, inputRow, foundNegative
-local colLoop, negative, makeNeg, positive, makePos, nextIter, exit, falseExit
+mCompareRows macro matr, row, col
+local rowLoop, colLoop, next_it, notEqual
 JUMPS
-    push ax       ; Сохранение регистров, используемых в макросе, в стек 
-    push bx 
-    push cx 
-    push si 
-
-    xor bx, bx    ; Обнуляем смещение по строкам 
-    mov ax, inputRow   ; Загружаем номер строки в регистр ax
-    add bx, col
-    add bx, col
-    mul bx          ; Умножаем на количество столбцов, получаем смещение
-    mov bx, ax
-
-    xor si, si    ; Обнуляем смещение по столбцам 
-    mov cx, col 
-    mov foundNegative, 0  ; Сбрасываем флаг чередования
-
-colLoop:                    ; Внутренний цикл, проходящий по столбцам 
-    mov ax, matr[bx][si]  ; bx - смещение по строкам, si - по столбцам 
-    or ax, ax
-    js negative           ; Если число отрицательное, переходим к метке negative
-    jmp positive           ; Если число положительное, переходим к метке positive
-
-negative:
-    cmp foundNegative, 0   ; Если первый элемент, запоминаем его как отрицательное
-    je makeNeg            ; Если еще не встретили отрицательное, устанавливаем флаг
-    cmp foundNegative, 1   ; Если предыдущий элемент был положительным, а текущий отрицателен
-    je makeNeg            ; Если чередование знаков соблюдается, идем к следующему элементу
-    jmp falseExit          ; Если знаки не чередуются, выводим false и выходим
-
-makeNeg:
-    mov foundNegative, -1  ; Устанавливаем флаг для отрицательного числа
-    jmp nextIter
-
-positive:
-    cmp foundNegative, 0   ; Если первый элемент, запоминаем его как положительное
-    je makePos            ; Если еще не встретили положительное, устанавливаем флаг
-    cmp foundNegative, -1  ; Если предыдущий элемент был отрицательным, а текущий положителен
-    je makePos            ; Если чередование знаков соблюдается, идем к следующему элементу
-    jmp falseExit          ; Если знаки не чередуются, выводим false и выходим
-
-makePos:
-    mov foundNegative, 1   ; Устанавливаем флаг для положительного числа
-    jmp nextIter
-
-nextIter:
-    add si, 2         ; Переходим к следующему элементу (размером в слово) 
-    loop colLoop 
-
-    ; Если чередование знаков не нарушилось, выводим true
-    mov bx, offset sTrue
-    printstr bx
-    jmp exit
-
-falseExit:
-    ; Если знаки не чередуются, выводим false
-    mov bx, offset sFalse
-    printstr bx
-
-exit:
-    pop si            ; Перенос сохранённых значений обратно в регистры  
-    pop cx 
-    pop bx 
-    pop ax 
-NOJUMPS
-endm
-
-mFindFirstNonZero macro matr, row, col
-local rowLoop, colLoop, nextRow, nextCol, findNZero
-JUMPS
-    push ax 
-    push bx 
-    push cx 
+    push ax
+    push bx
+    push cx
+    push dx
     push si
     push di
-    push dx
-    xor bx, bx    ; Обнуляем смещение по строкам 
-    xor si, si    ; Счетчик столбцов
-    xor di, di      ; счетчик строк
-    mov cx, col   ; Устанавливаем количество столбцов
-    mov di, -1
-colLoop:
-    inc di
-    xor bx, bx    ;сбрасываем смещение по строкам
-    xor dx, dx    ;сбрасываем счетчик строк
-    mov dx, -1
-    push cx       ; Сохраняем текущий счетчик столбцов
-    mov cx, row   ; Устанавливаем количество строк
-    
-rowLoop:
-    inc dx        
-    mov ax, matr[bx][si]
-    cmp ax, 0
-    je findNZero
-    add bx, col
-    add bx, col
-    loop rowLoop
-    jmp nextCol
 
-findNZero:
+    xor di, di       ; Индекс первой строки
+    xor ax, ax
+    xor bx, bx
+
+    mov ax, row
+    sub ax, 1d
+    mov bx, 2d
+    mul bx
+
+    mov bx, col
+    mul bx
+
+    mov bx, ax  ; индекс последней строчки
     push bx
+    mov ax, row
+    mov bx, 2
+    div bx
+    pop bx
 
-    mov ax, dx
-    mWriteAX
-    xor dx, dx
-    
-    mov bx, offset tab
-    printstr bx
+    mov cx, ax
+rowLoop:
+    push cx
+    xor si, si       ; Индекс начала текущей строки
+    mov cx, col
+
+colLoop:
+    mov dx, matr[bx][si] ; Элемент последней строки
+    push bx
+    xor bx, bx
+    mov bx, di
+    mov ax, matr[bx][si] ; Элемент первой строки
+    pop bx
+    cmp ax, dx
+    jne notEqual
+    add si, 2
+    loop colLoop
 
     mov ax, di
-    mWriteAX
-
-    mov bx, offset endl
-    printstr bx
-
+    push bx
+    mov bx, col
+    div bl
+    mov bx, 2
+    div bl
     pop bx
-    jmp nextCol
+    mWriteAX
+    printstr tab
+    mov ax, bx
+    push bx
+    mov bx, col
+    div bl
+    mov bx, 2
+    div bl
+    pop bx
+    mWriteAX
+    printstr tab
 
-nextCol:
-    pop cx   
-    add si, 2  
-    loop colLoop 
-    pop dx
+    printstr sRowsEqual
+    printstr endl
+    jmp next_it
+
+notEqual:
+    mov ax, di
+    push bx
+    mov bx, col
+    div bl
+    mov bx, 2
+    div bl
+    pop bx
+    mWriteAX
+    printstr tab
+    mov ax, bx
+    push bx
+    mov bx, col
+    div bl
+    mov bx, 2
+    div bl
+    pop bx
+    mWriteAX
+    printstr tab
+
+    printstr sRowsNotEqual
+    printstr endl
+
+next_it:
+    pop cx
+    add di, col
+    add di, col
+    sub bx, col
+    sub bx, col
+    loop rowLoop
+
     pop di
-    pop si     
-    pop cx 
-    pop bx 
-    pop ax 
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
 NOJUMPS
 endm
 
+
+mReplaceMaxNeg macro matrix, row, col
+local rowLoop, colLoop, next_it
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    xor bx, bx
+    mov cx, row
+
+rowLoop:
+    push cx
+    xor si, si
+    mov cx, col
+    mov dx, matrix[bx][si] ; начальное значение как изначально максимальное
+    xor di, di               ; di - хранит индекс максимального жлемента в строчке
+
+colLoop:
+    mov ax, matrix[bx][si] 
+    cmp ax, dx 
+    jle next_it            ; если ax <= dx, то идем дальше
+
+    mov dx, ax            ; иначе обновляем максимум
+    mov di, si            ; сохраняем индекс максимума
+
+next_it:
+    add si, 2        ; следующий элемент
+    loop colLoop
+
+    neg dx     ;меняем на противоположный
+    mov matrix[bx][di], dx ; записываем обратно в матрицу
+
+    add bx, col           ; для перехода к следующей строке
+    add bx, col
+    pop cx
+    loop rowLoop
+
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+endm
+
+pause macro 
+    printstr endl
+    mov ah, 08h
+    int 21h
+endm
 
 .model small
 .stack 100h
@@ -498,70 +493,84 @@ col dw 5d
 tab db '	$'
 endl db 0Dh, 0Ah, '$'
 buffer db ?
-sTask1 db ' Transpose matrix: $'
+sTask1 db '      Transpose matrix: $'
 sMatr db 'Matrix: $'
 sTask2A db 'Summa(po strokam): $'
-sTask2b db 'Enter row: $'
-sTask2c db 'Index of first non zero elemnt: $'
-inputRow dw ?
+sTask2B db 'Negative max el in row: $'
+sMenu db '1. Transpose matrix', 0Dh, 0Ah, '2. Sum after negative', 0Dh, 0Ah, '3. Compare rows', 0Dh, 0Ah, '4. Replace max with negative', 0Dh, 0Ah,'0. Exit', 0Dh, 0Ah, '$'
+sChoose db 'Enter your choice: $'
+sError db 'Invalid choice! Try again. $'
+sRowsEqual db 'Rows equal $'
+sRowsNotEqual db 'Rows not equal $'
 foundNegative db ?
 sum dw 0
-sTrue db 'True $'
-sFalse db 'False $'
 .code
 start:
-	mov ax, @data
-	mov ds, ax
+    mov ax, @data
+    mov ds, ax
 
-	wipescreen
+    wipescreen
+    mReadMatrix matr, row, col
 
-	setcursor 0, 0, 0, 0
+menuLoop:
+    wipescreen
+    printstr sMenu
+    printstr endl
+    printstr sChoose
 
-	mReadMatrix matr, row, col
+    mReadAX buffer, 2
 
-    mov bx, offset sMatr
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mWriteMatrix matr, row, col
+    JUMPS
+    cmp ax, 1
+    je taskTranspose
+    cmp ax, 2
+    je taskSumAfterNegative
+    cmp ax, 3
+    je taskCompareRows
+    cmp ax, 4
+    je taskReplaceMax
+    cmp ax, 0
+    je exitProgram
+    jmp menuLoop
+taskTranspose:
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
 
-    mov bx, offset sTask1
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mTransposeMatrix matr, row, col, tMatr
-	
-	mWriteMatrix tMatr, row, col
+    printstr sTask1
+    printstr endl
+    mTransposeMatrix matr, row, col, tMatr
+    mWriteMatrix tMatr, row, col
+    pause
+    jmp menuLoop
+taskSumAfterNegative:
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
 
-    mov bx, offset sTask2A
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-
+    printstr sTask2A
+    printstr endl
     mSumAfterNeg matr, row, col, foundNegative
+    pause
+    jmp menuLoop
+taskCompareRows:
+    printstr endl
+    mCompareRows matr, row, col
+    pause
+    jmp menuLoop
+taskReplaceMax:
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
 
-    mov bx, offset sTask2b
-    printstr bx
-    mReadAX buffer, 3
-    mov inputRow, ax
-    mIsAlternatesSigns matr, row, col, inputRow, foundNegative
-    
-    mov bx, offset endl
-    printstr bx
-    mov bx, offset sMatr
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mWriteMatrix matr, row, col
-
-    mov bx, offset endl
-    printstr bx
-    mov bx, offset sTask2c
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-    mFindFirstNonZero matr, row, col
-
+    printstr sTask2B
+    printstr endl
+    mReplaceMaxNeg matr, row, col
+    mWriteMatrix matr, row, col
+    pause
+    jmp menuLoop
+exitProgram:
+NOJUMPS
     mov ax, 4c00h
-	int 21h
+    int 21h
 end start
