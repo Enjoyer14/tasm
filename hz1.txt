@@ -132,39 +132,6 @@ endOfConvert:
 	pop bx
 endm
 
-mCopyMatrix macro matrix1, matrix2, row, col
-local rowLoop, colLoop
-    push ax       ; Сохранение регистров, используемых в макросе, в стек
-    push bx
-    push cx
-    push si
-    push di
-
-    xor bx, bx    ; Обнуляем смещение по строкам
-    mov cx, row   ; Устанавливаем количество строк
-rowLoop:
-    push cx
-
-    xor si, si    ; Обнуляем смещение по столбцам
-    mov cx, col   ; Устанавливаем количество столбцов
-colLoop:
-    mov ax, matrix1[bx][si] ; Загружаем элемент из исходной матрицы
-    mov matrix2[bx][si], ax ; Копируем элемент в целевую матрицу
-    add si, 2                 ; Переходим к следующему элементу (размером в слово)
-    loop colLoop
-
-    add bx, col       ; Увеличиваем смещение по строкам исходной матрицы
-    add bx, col
-    pop cx
-    loop rowLoop
-
-    pop di            ; Восстанавливаем регистры
-    pop si
-    pop cx
-    pop bx
-    pop ax
-endm
-
 mReadMatrix macro matrix, row, col, matr1  
 local rowLoop, colLoop  
 JUMPS             ; Директива, делающая возможным большие прыжки 
@@ -239,54 +206,6 @@ colLoop:                    ; Внутренний цикл, проходящи�
     pop ax 
 endm mWriteMatrix 
 
-mTask4 macro matrix, row, col, flagNegative, matrixRes, col2
-local rowLoop, colLoop, nextCol, nextRow, push_back
- int 3h  
-    push ax       ; Сохранение регистров, используемых в макросе, в стек 
-    push bx 
-    push cx 
-    push si 
-
-    xor di, di
-    xor bx, bx    ; Обнуляем смещение по строкам 
-    mov cx, row 
-rowLoop:
-    push cx  
-    mov flagNegative, 0
-    xor si, si    ; Обнуляем смещение по столбцам 
-    mov cx, col 
-colLoop:                    ; Внутренний цикл, проходящий по столбцам 
-    mov ax, matrix[bx][si]  ; bx - смещение по строкам, si - по столбцам 
-    
-    cmp ax, 0
-    jge push_back
-
-    cmp flagNegative, 1
-    je push_back
-
-    mov flagNegative, 1
-    jmp nextCol
-
-push_back:
-    mov [matrixRes + di], ax
-    xor ax, ax
-    add di, 2
-    jmp nextCol
-nextCol:
-    add si, 2         ; Переходим к следующему элементу (размером в слово) 
-    loop colLoop 
-nextRow: 
-    add bx, col       ; Увеличиваем смещение по строкам  
-    add bx, col       ; (дважды, так как размер каждого элемента - слово) 
-    pop cx 
-    loop rowLoop 
-    
-    pop si            ; Перенос сохранённых значений обратно в регистры  
-    pop cx 
-    pop bx 
-    pop ax 
-endm
-
 mTransposeMatrix macro matrix, row, col, resMatrix    
 local rowLoop, colLoop  
     push ax         ; Сохранение регистров, используемых в макросе, в стек 
@@ -307,7 +226,7 @@ colLoop:                  ; Внутренний цикл, проходящий 
     mul di                ; Устанавливаем смещение по строкам 
     add ax, si            ; Устанавливаем смешение по столбцам 
     mov bx, ax 
-    mov ax, matrix[bx]
+    mov ax, matrix[bx] 
     push ax               ; Заносим текущий элемент в стек 
  
     mov ax, row          
@@ -570,15 +489,12 @@ endm
 .stack 100h
 .data
 matr dw 15 dup(15 dup (?))
-matr1 dw 15 dup(15 dup (?)) 
 tMatr dw 15 dup(15 dup(?))
 maxMatr dw 15 dup(15 dup(?))
 row dw ?
 col dw ?
-col2 dw ?
 trow dw ?
 tcol dw ?
-flag1 dw ?
 tab db '	$'
 endl db 0Dh, 0Ah, '$'
 buffer db ?
@@ -611,8 +527,6 @@ start:
     printstr sInputC
     mReadAX buffer, 3
     mov col, ax
-    sub ax, 1
-    mov col2, ax
     mov trow, ax
     xor ax, ax
     printstr sInputMatr
@@ -653,8 +567,6 @@ enterMatr:
     printstr sInputC
     mReadAX buffer, 3
     mov col, ax
-    sub ax, 1
-    mov col2, ax
     mov trow, ax
     xor ax, ax
     printstr sInputMatr
@@ -687,11 +599,9 @@ taskSumAfterNegative:
     mWriteMatrix matr, row, col
     printstr endl
 
-    ;mCopyMatrix matr, matr1, row, col
-int 3h
-    mTask4 matr, row, col, flag1, matr1, col2
-
-    mWriteMatrix matr1, row, col2
+    printstr sTask2A
+    printstr endl
+    mSumAfterNeg matr, row, col, foundNegative
     pause
     jmp menuLoop
 taskCompareRows:
