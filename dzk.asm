@@ -454,51 +454,70 @@ skipRow:
 NOJUMPS
 endm
 
-mTask3 macro matr, row, col
-local rowLoop, colLoop, next_it, inTriangle, notFirst
+mTask3 MACRO matrix, rows, cols
+    LOCAL OuterLoop, InnerLoop, SwapLoop, SkipSwap, loop1
     push ax
-    push bx 
-    push cx 
-    push si 
-    push dx
-    push di
-
-    xor bx, bx
-    xor si, si    ; Счетчик столбцов
-
-    mov cx, col 
-colLoop:
-    push cx       ; Сохраняем текущий счетчик столбцов
-    xor bx, bx    ;сбрасываем смещение по строкам
-    mov ax, row
-    sub ax, 1d
-    mov cx, ax
-rowLoop1:
-    mov di, cx
+    push bx ; смещение по началу в строчку
     push cx
-    mov ax, row
-    sub ax, di
-    sub ax, 1d
-    mov cx, ax
-rowLoop2:
-    mov ax, matr[bx][si]
-    
-    add bx, col
-    add bx, col
-    loop rowLoop2
+    push dx
+    push si  ; смещение по началу в столбик
+    push di  ; смещение с конца в столбик
 
+    mov cx, row
+loop1:
+    mov si, 0
+OuterLoop:
+    mov ax, cols
+    add ax, ax
+    cmp si, ax              ; Проверка: si < cols
+    jae EndSort               ; Если все столбцы обработаны, выйти
+
+    mov di, cols
+    add di, di
+
+    ; Для каждой строки в столбце
+    xor bx, bx
+InnerLoop:
+    mov ax, rows
+    mul cols
+    add ax, ax
+    cmp bx, ax             ; Проверка: bx < rows - 1
+    jae NextColumn            ; Если строки закончились, перейти к следующему столбцу
+    xor ax, ax
+    ; Сравнить элементы bx и bx+1 в текущем столбце (si)
+    mov ax, matrix[bx][si]    ; Загружаем текущий элемент в AX
+    push bx
+    add bx, di
+    mov dx, matrix[bx][si]  ; Загружаем следующий элемент в DX (bx+1)
+    pop bx
+    cmp ax, dx                ; Сравниваем AX и DX
+    jle SkipSwap              ; Если AX <= DX, пропустить обмен
+
+    ; Обмен значений
+    mov matrix[bx][si], dx    ; matrix[bx][si] = DX
+    push bx
+    add bx, di
+    mov matrix[bx][si], ax  ; matrix[bx+1][si] = AX
+    pop bx
+
+SkipSwap:
+    add bx, col
+    add bx, col
+    jmp InnerLoop             ; Возврат к началу внутреннего цикла
+
+NextColumn:
     add si, 2
-    pop cx 
-    loop colLoop
+    jmp OuterLoop             ; Переход к следующему столбцу
 
-    pop di
+EndSort:
+    loop loop1
+    pop di               ; Восстанавливаем сохраненные регистры
+    pop si
     pop dx
-    pop si            ; Перенос сохранённых значений обратно в регистры  
-    pop cx 
-    pop bx 
-    pop ax 
-
-endm
+    pop cx
+    pop bx
+    pop ax
+ENDM
 
 
 
@@ -507,6 +526,20 @@ pause macro
     mov ah, 08h
     int 21h
 endm
+setCursor macro row, col
+    push ax
+    push bx
+    push dx
+    mov ah, 02h        ; Функция установки позиции курсора
+    xor bh, bh         ; Указываем номер страницы (обычно 0)
+    mov dh, row        ; Устанавливаем строку курсора
+    mov dl, col        ; Устанавливаем столбец курсора
+    int 10h            ; Вызов прерывания BIOS
+    pop dx
+    pop bx
+    pop ax
+endm
+
 
 .model small
 .stack 100h
@@ -522,16 +555,17 @@ Nt2 dw ?
 tab db '	$'
 endl db 0Dh, 0Ah, '$'
 buffer db ?
-sTask1 db '      Transpose matrix: $'
-sMatr db 'Matrix: $'
-sTask2A db 'X / firstNonZero element: $'
-sMenu db '1. Vvod matrix', 0Dh, 0Ah, '2. Vivod matrix', 0Dh, 0Ah, '3. Transpose matrix', 0Dh, 0Ah, '4. Delenie na first non zero', 0Dh, 0Ah, '5. Find Simmetry Elements', 0Dh, 0Ah, '6. Sortirovka po vozrastanie', 0Dh, 0Ah,'0. Exit', 0Dh, 0Ah, '$'
-sChoose db 'Enter your choice: $'
+sTask1 db '         Transposed matrix: $'
+sMatr db 'The original matrix: $'
+sTask2A db 'Division by the first is non zero: $'
+sMenu db '1. Input matrix', 0Dh, 0Ah, '2. Matrix output', 0Dh, 0Ah, '3. Matrix transposition', 0Dh, 0Ah, '4. Division by the first is non zero', 0Dh, 0Ah, '5. Semetry relative to the center', 0Dh, 0Ah, '6. Sort in ascending order', 0Dh, 0Ah,'0. Exit', 0Dh, 0Ah, '$'
+sChoose db 'Enter the item number: $'
 sError db 'Incorrect value, try again $'
-sInputMatr db 'Enter Matr: $'
+sInputMatr db 'Enter the elements of the matrix: $'
 sInputR db 'Enter number of rows: $'
 sInputC db 'Enter number of cols: $'
-sOutput1 db 'Simmetrichnie stroki: $'
+sOutput1 db 'Symmetric strings: $'
+sOutput3 db 'Sorted columns: $'
 el1 dw 0
 
 .code
@@ -557,6 +591,7 @@ start:
 
 menuLoop:
     wipescreen
+    setCursor 4, 0    ; Установить курсор в строку 5, столбец 10
     printstr sMenu
     printstr endl
     printstr sChoose
@@ -607,6 +642,8 @@ printMatr:
 
 taskTranspose:
     printstr endl
+    printstr sMatr
+    printstr endl
     mWriteMatrix matr, row, col
     printstr endl
 
@@ -619,6 +656,8 @@ taskTranspose:
     jmp menuLoop
 
 taskN1:
+    printstr endl
+    printstr sMatr
     printstr endl
     mWriteMatrix matr, row, col
     printstr endl
@@ -635,6 +674,8 @@ taskN1:
 taskN2:
 JUMPS
     printstr endl
+    printstr sMatr
+    printstr endl
     mWriteMatrix matr, row, col
     printstr endl
 
@@ -647,10 +688,15 @@ JUMPS
 
 taskN3:
     printstr endl
+    printstr sMatr
+    printstr endl
     mWriteMatrix matr, row, col
     printstr endl
-    ; printstr sOutput1
-    ; mTask3 matr, row, col, Nt2, el1
+    printstr sOutput3
+    printstr endl
+    mCopyMatrix matr, matrn1, row, col
+    mTask3 matrn1, row, col
+    mWriteMatrix matrn1, row, col
     pause
     jmp menuLoop
 exitProgram:
