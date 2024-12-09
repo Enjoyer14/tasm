@@ -1,3 +1,19 @@
+wipescreen macro
+	push ax
+	push bx
+	push cx
+	push dx
+	mov ax, 0600h
+	mov bh, 07
+	mov cx, 0
+	mov dx, 184Fh
+	int 10h
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+endm
+
 mWriteAX macro               
 local convert, write 
     push ax      ; Сохранение регистров, используемых в макросе, в стек 
@@ -49,59 +65,76 @@ pop bx
 pop ax 
 endm mWriteAX 
 
+printstr macro msg
+    push ax               ; Сохраняем регистры AX и DX
+    push dx
+    lea dx, msg           ; Загружаем адрес строки в DX
+    mov ah, 09h           ; Функция DOS для вывода строки
+    int 21h               ; Вызов DOS-прерывания
+    pop dx                ; Восстанавливаем регистры DX и AX
+    pop ax
+endm
+
 .model small 
 .stack 100h 
 .data 
 ;=========================== 
 CR = 0Dh 
 LF = 0Ah 
+count dw 0
 FileName db "task1.txt0", "$"           ;имя файла в формате ASCIIZ строки 
-FDescr dw ?                                ;ячейка для хранения дискриптора 
+FDescr dw ?                                ;ячейка для хранения дисриптора 
 NewFile db "answer.txt0", "$" 
 FDescrNew dw ?                             ;для хранения дискриптора нового 
 файла 
 Buffer dw ?                                ;буфер для хранения символа строки 
-Tochka dw 46d
-String dw 40 dup(0)                        ;буфер для хранения строки 
-index dw 0                                 ;впомогательная переменная    
+String db 256 dup(0)                        ;буфер для хранения строки 
+NewString db 256 dup(0)
+StringForFile db 256 dup(0)
+index dw 0                                 ;впомогательная переменная  
+endl db 0Dh, 0Ah, '$'  
 MessageError1 db CR, LF, "File was not opened !", "$"         
 MessageError2 db CR, LF, "File was not read !", "$" 
 MessageError3 db CR, LF, "File was not founded!", "$" 
 MessageError4 db CR, LF, "File was not created!", "$" 
 MessageError5 db CR, LF, "Error in writing in the file!", "$" 
 MessageEnd db CR, LF, "Program was successfully finished!", "$" 
+mStrInput db 'Input file: $'
+mStrOutput db 'Output file: $'
 ;=========================== 
 .code 
 print_string macro 
     mov ah, 09h 
     int 21h 
-endm        
-
+endm          
+                                                                                                               
 start: 
     mov ax, @data 
     mov ds, ax 
-    xor di, di
-    ;открытие файла 
+    mov es, ax
+    wipescreen
+
+ ;открытие файла 
     mov ah, 3Dh 
     xor al, al                          ;открыть файл для чтения 
     mov dx, offset FileName             ;адрес имени файла 
     xor cx, cx                          ;открыть файл без указания атрибутов 
     int 21h                             ;выполнить прерывание 
     mov FDescr, ax                      ;получить дескриптор файла 
-    jnc M1                      ;eсли ошибок нет, выполнить программу дальше    
+    jnc CreateNewFile                      ;eсли ошибок нет, выполнить программу дальше    
     jmp Er1                             ;файл не был открыт 
   
-M1:  
+CreateNewFile:  
     ;создание нового файла 
     mov ah, 3ch           ;создать новый файл   
     xor cx, cx                           
     mov dx, offset NewFile                 ;адрес имени файла 
     int 21h                                ;выпонить 
     mov FDescrNew, ax                      ;дискриптор файла 
-    jnc M2                       ;если ошибок нет, выполнить программу дальше     
+    jnc ReadFile                       ;если ошибок нет, выполнить программу дальше     
     jmp Er3                                ;файл не был создан 
  
-M2: 
+ReadFile: 
  ;чтение файла 
     mov ah, 3fh                            ;чтение из файла 
     mov bx, FDescr                         ;дескриптор нужного файла    
@@ -112,35 +145,97 @@ M2:
     jmp Er2                      ;если ошибка -> выход         
     M3: 
         cmp ax, 0 ;если ax=0(число считанных байтов) -> файл кончился -> выход 
-        je M4                         ;если ax=0 -> sf=1 
-        mov ax, [Buffer] 
-        mov bx, index
-        cmp ax, 64d
-        jg Remember
-
-        cmp ax, 33d
-        jl Remember
-
-        inc di
-        mov ax, ' '
-
-    Remember:
-        mov String[bx], ax 
+        je WriteToFile                         ;если ax=0 -> sf=1 
+        mov ax, Buffer 
+        mov bx, index 
+        mov String[bx], al 
         inc bx 
         mov index, bx 
-    jmp M2 
+    jmp ReadFile 
  
-M4:    
-    ;запись в файл  
+WriteToFile:
+    mov ax, '$'
+    mov bx, index 
+    mov String[bx], al
+    inc bx 
+    mov index, bx   ; добавдяем знак $ в конец строчки для вывода на экран
+
+    printstr mStrInput
+    printstr endl
+    printstr String
+Task:
+    lea si, String                    ; Указатель на начало исходной строки
+    lea di, NewString                 ; Указатель на начало выходной строки
+
+scanLoop:
+    lodsb                            ; Загружаем слово из [SI] в AX
+    cmp al, '$'                       ; Проверяем конец строки (символ '$')
+    je endScan                       ; Если символ '$', заканчиваем обработку
+
+    cmp al, 0                      ; Проверяем конец строки (символ '$')
+    je endScan  
+
+    cmp al, ','                       ; Проверка: AX = ','
+    je replace1                   ; Если да, заменяем
+
+    cmp al, '!'                       ; Проверка: AX = '!'
+    je replace1                   ; Если да, заменяем
+
+    cmp al, '.'                       ; Проверка: AX = '.'
+    je replace1                   ; Если да, заменяем
+
+    cmp al, '?'                       ; Проверка: AX = '.'
+    je replace1                   ; Если да, заменяем
+
+    cmp al, ':'                       ; Проверка: AX = '.'
+    je replace1                   ; Если да, заменяем
+
+    cmp al, ';'                       ; Проверка: AX = '.'
+    je replace1                   ; Если да, заменяем
+
+    stosb                            ; Если символ не знак препинания, записываем его
+    jmp scanLoop                     ; Переход к следующему символу
+
+replace1:
+    mov ax, ' '                       ; Заменяем символ на пробел
+    stosb                            ; Записываем пробел
+    jmp scanLoop                     ; Переход к следующему символу
+
+endScan:
+    mov ax, '$'                       ; Конец строки
+    stosb                             ; Записываем символ '$' в выходную строку
+
+    printstr endl
+    printstr endl
+
+    printstr mStrOutput
+    printstr endl
+    printstr NewString
+
+    int 03h
+
+    xor cx, cx
+    mov cx, index
+    lea si, NewString                 ; Возвращаем указатель SI на начало строки
+    lea di, StringForFile                 ; Указатель DI тоже на начало строки
+    rep movsb                         ; Копируем строку, кроме последнего элемента
+    mov si, di
+    mov ax, 0
+    dec si
+    dec si
+    mov cx, 2
+    rep stosb
+
+
     mov ah, 40h 
     mov bx, FDescrNew 
     mov cx, index 
-    mov dx, offset String 
+    mov dx, offset StringForFile 
     int 21h 
-    jnc M5 
+    jnc CloseFiles 
     jmp Er4 
-         
-M5:      
+        
+CloseFiles:      
     ;закрытие исходного файла  
     mov ah, 3eh                           ;функция закрытия файла 
     mov bx, FDescr  
@@ -153,9 +248,7 @@ M5:
        
     ;вывод сообщения об успешном выполнении программы 
     mov dx, offset MessageEnd 
-    print_string
-    mov ax, di
-    mWriteAX
+    print_string 
     jmp Exit  
        
 Er1:     
@@ -185,7 +278,7 @@ Er3:
       
 Er4: 
  ;ошибка при записи в файл 
-    lea dx, MessageError5 
+ lea dx, MessageError5 
     print_string 
     jmp Exit   
       

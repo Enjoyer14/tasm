@@ -29,37 +29,16 @@ endm
 .model small
 .stack 100h
 .data
-
-x db -100d
 message1 db 'x<0 $'
 message2 db 'x>0 $'
 message3 db 'x==0 $'
+x db 44d, '$'
 .code
 start:
     mov ax, @data
     mov ds, ax
-
-    wipescreen
-
-    cmp x, 0
-    jl case1
-    jg case2
-    je case3
-
+    printstr x
     
-
-case1:
-    printstr message1
-    jmp ends1
-
-case2:
-    printstr message2
-    jmp ends1
-
-case3:
-    printstr message3
-    jmp ends1
-
 ends1:
     mov ax,4c00h
     int 21h
