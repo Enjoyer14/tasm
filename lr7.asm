@@ -86,7 +86,6 @@ FileName db "task1.txt0", "$"           ;имя файла в формате ASC
 FDescr dw ?                                ;ячейка для хранения дисриптора 
 NewFile db "answer.txt0", "$" 
 FDescrNew dw ?                             ;для хранения дискриптора нового 
-файла 
 Buffer dw ?                                ;буфер для хранения символа строки 
 String db 256 dup(0)                        ;буфер для хранения строки 
 NewString db 256 dup(0)
@@ -99,6 +98,7 @@ MessageError3 db CR, LF, "File was not founded!", "$"
 MessageError4 db CR, LF, "File was not created!", "$" 
 MessageError5 db CR, LF, "Error in writing in the file!", "$" 
 MessageEnd db CR, LF, "Program was successfully finished!", "$" 
+MessageCount db 'Number of zamen = $'
 mStrInput db 'Input file: $'
 mStrOutput db 'Output file: $'
 ;=========================== 
@@ -197,6 +197,9 @@ scanLoop:
     jmp scanLoop                     ; Переход к следующему символу
 
 replace1:
+    mov ax, count
+    inc ax
+    mov count, ax
     mov ax, ' '                       ; Заменяем символ на пробел
     stosb                            ; Записываем пробел
     jmp scanLoop                     ; Переход к следующему символу
@@ -242,9 +245,16 @@ CloseFiles:
     mov ah, 3eh                           ;функция закрытия файла 
     mov bx, FDescrNew  
     int 21h 
-       
+    
+    printstr endl
+    printstr endl
+    printstr MessageCount
+    mov ax, count
+    mWriteAX
+    printstr endl
+
     ;вывод сообщения об успешном выполнении программы 
-    mov dx, offset MessageEnd 
+    mov dx, offset MessageEnd
     print_string 
     jmp Exit  
        
