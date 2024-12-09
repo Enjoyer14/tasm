@@ -135,7 +135,7 @@ CreateNewFile:
     jmp Er3                                ;файл не был создан 
  
 ReadFile: 
- ;чтение файла 
+;чтение файла 
     mov ah, 3fh                            ;чтение из файла 
     mov bx, FDescr                         ;дескриптор нужного файла    
     mov cx, 1                              ;количество считываемых символов  
@@ -216,16 +216,13 @@ endScan:
 
     xor cx, cx
     mov cx, index
+    dec cx
     lea si, NewString                 ; Возвращаем указатель SI на начало строки
     lea di, StringForFile                 ; Указатель DI тоже на начало строки
     rep movsb                         ; Копируем строку, кроме последнего элемента
-    mov si, di
-    mov ax, 0
-    dec si
-    dec si
-    mov cx, 2
-    rep stosb
 
+    mov ax, 32d
+    stosb
 
     mov ah, 40h 
     mov bx, FDescrNew 
