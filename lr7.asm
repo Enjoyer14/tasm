@@ -154,7 +154,7 @@ ReadFile:
     jmp ReadFile 
  
 WriteToFile:
-    mov ax, '$'
+    mov ax, '$' ; записываем $ для корректного вывода на экран
     mov bx, index 
     mov String[bx], al
     inc bx 
@@ -164,49 +164,49 @@ WriteToFile:
     printstr endl
     printstr String
 Task:
-    lea si, String                    ; Указатель на начало исходной строки
-    lea di, NewString                 ; Указатель на начало выходной строки
+    lea si, String    ;указатель на начало исходной строки
+    lea di, NewString   ; указатель на начало выходной строки
 
 scanLoop:
-    lodsb                            ; Загружаем слово из [SI] в AX
-    cmp al, '$'                       ; Проверяем конец строки (символ '$')
-    je endScan                       ; Если символ '$', заканчиваем обработку
+    lodsb        ; загрузка символа из si в ах
+    cmp al, '$'  ;проверяем конец строки (символ $)
+    je endScan ; Если символ '$' то конец
 
-    cmp al, 0                      ; Проверяем конец строки (символ '$')
+    cmp al, 0     ; Проверяем конец строки - 0
     je endScan  
 
-    cmp al, ','                       ; Проверка: AX = ','
-    je replace1                   ; Если да, заменяем
+    cmp al, ','
+    je replace1
 
-    cmp al, '!'                       ; Проверка: AX = '!'
-    je replace1                   ; Если да, заменяем
+    cmp al, '!'
+    je replace1
 
-    cmp al, '.'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, '.'
+    je replace1
 
-    cmp al, '?'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, '?'
+    je replace1
 
-    cmp al, ':'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, ':'
+    je replace1
 
-    cmp al, ';'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, ';'
+    je replace1  
 
-    stosb                            ; Если символ не знак препинания, записываем его
-    jmp scanLoop                     ; Переход к следующему символу
+    stosb ; записываем ах в di 
+    jmp scanLoop ; переходим к следующему символу
 
-replace1:
+replace1:  
     mov ax, count
     inc ax
-    mov count, ax
-    mov ax, ' '                       ; Заменяем символ на пробел
-    stosb                            ; Записываем пробел
-    jmp scanLoop                     ; Переход к следующему символу
+    mov count, ax    ; инкремент для счетчика замен
+    mov ax, ' ' ; заменяем символ на пробел
+    stosb   ; сохраняем пробел в строчке
+    jmp scanLoop    ; Переходим к следующему символу
 
 endScan:
-    mov ax, '$'                       ; Конец строки
-    stosb                             ; Записываем символ '$' в выходную строку
+    mov ax, '$' ; добавляем конец строки для вывода на экран
+    stosb     ; Записываем символ $ в выходную строку
 
     printstr endl
     printstr endl
@@ -220,9 +220,9 @@ endScan:
     xor cx, cx
     mov cx, index
     dec cx
-    lea si, NewString                 ; Возвращаем указатель SI на начало строки
-    lea di, StringForFile                 ; Указатель DI тоже на начало строки
-    rep movsb                         ; Копируем строку, кроме последнего элемента
+    lea si, NewString  ; получаем указатель SI на начало строки
+    lea di, StringForFile   ; Указатель DI тоже на начало строки
+    rep movsb  ; Копируем строку кроме последнего элемента
 
     mov ax, 32d
     stosb
