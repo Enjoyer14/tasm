@@ -14,56 +14,6 @@ wipescreen macro
 	pop ax
 endm
 
-mWriteAX macro               
-local convert, write 
-    push ax      ; Сохранение регистров, используемых в макросе, в стек 
-    push bx 
-    push cx 
-    push dx 
-    push di 
- 
-    mov cx, 10   ; cx - основание системы счисления 
-    xor di, di   ; di - количество цифр в числе 
- 
-    or ax, ax    ; Проверяем, равно ли число в ax нулю и устанавливаем флаги 
-    jns convert  ; Переход к конвертированию, если число в ax положительное 
-          
-    push ax 
- 
-    mov dx, '-' 
-    mov ah, 02h  ; 02h - функция вывода символа на экран 
-    int 21h      ; Вывод символа "-" 
- 
-    pop ax      
-    neg ax       ; Инвертируем отрицательное число 
-     
-convert:   
-    xor dx, dx 
- 
-    div cx       ; После деления dl = остатку от деления ax на cx 
-    add dl, '0'  ; Перевод в символьный формат 
-    inc di       ; Увеличиваем количество цифр в числе на 1   
- 
-    push dx      ; Складываем в стек 
- 
-    or ax, ax    ; Проверяем, равно ли число в ax нулю и устанавливаем флаги 
-    jnz convert  ; Переход к конвертированию, если число в ax не равно нулю  
- 
-write:           ; Вывод значения из стека на экран 
-    pop dx       ; dl = очередной символ 
- 
-    mov ah, 02h 
-    int 21h      ; Вывод очередного символа 
-    dec di       ; Повторяем, пока di <> 0 
-    jnz write   
- 
-; Перенос сохранённых значений обратно в регистры  
-pop di       
-pop dx 
-pop cx 
-pop bx 
-pop ax 
-endm mWriteAX 
 
 printstr macro msg
     push ax               ; Сохраняем регистры AX и DX
@@ -75,6 +25,14 @@ printstr macro msg
     pop ax
 endm
 
+inputchr macro var
+    push ax
+	mov ah, 01h
+	int 21h
+	mov var, al
+    pop ax
+endm
+
 .model small 
 .stack 100h 
 .data 
@@ -82,14 +40,13 @@ endm
 CR = 0Dh 
 LF = 0Ah 
 count dw 0
-FileName db "task1.txt0", "$"           ;имя файла в формате ASCIIZ строки 
+FileName db "tw.txt0", "$"           ;имя файла в формате ASCIIZ строки 
 FDescr dw ?                                ;ячейка для хранения дисриптора 
-NewFile db "answer.txt0", "$" 
+NewFile db "answer1111111111.txt0", "$" 
 FDescrNew dw ?                             ;для хранения дискриптора нового 
 Buffer dw ?                                ;буфер для хранения символа строки 
 String db 1024 dup(0)                        ;буфер для хранения строки 
 NewString db 1024 dup(0)
-StringForFile db 1024 dup(0)
 index dw 0                                 ;впомогательная переменная  
 endl db 0Dh, 0Ah, '$'  
 MessageError1 db CR, LF, "File was not opened !", "$"         
@@ -98,9 +55,12 @@ MessageError3 db CR, LF, "File was not founded!", "$"
 MessageError4 db CR, LF, "File was not created!", "$" 
 MessageError5 db CR, LF, "Error in writing in the file!", "$" 
 MessageEnd db CR, LF, "Program was successfully finished!", "$" 
-MessageCount db 'Number of zamen = $'
 mStrInput db 'Input file: $'
 mStrOutput db 'Output file: $'
+rowCount dw 0
+countWord dw 0
+medium dw 0
+
 ;=========================== 
 .code 
 print_string macro 
@@ -109,6 +69,7 @@ print_string macro
 endm          
                                                                                                                
 start: 
+JUMPS
     mov ax, @data 
     mov ds, ax 
     mov es, ax
@@ -154,85 +115,122 @@ ReadFile:
     jmp ReadFile 
  
 WriteToFile:
-    mov ax, '$' ; записываем $ для корректного вывода на экран
+    mov ax, '$'
     mov bx, index 
     mov String[bx], al
     inc bx 
-    mov index, bx   ; добавдяем знак $ в конец строчки для вывода на экран
+    mov index, bx
 
     printstr mStrInput
     printstr endl
     printstr String
+    printstr endl
+    printstr endl
+    
 Task:
-    lea si, String    ;указатель на начало исходной строки
-    lea di, NewString   ; указатель на начало выходной строки
+    lea si, String
+    lea di, NewString
 
-scanLoop:
-    lodsb        ; загрузка символа из si в ах
-    cmp al, '$'  ;проверяем конец строки (символ $)
-    je endScan ; Если символ '$' то конец
+loop1:
+    lodsb 
+    cmp al, 0
+    je endProcess
+    
+    cmp al, 0Dh
+    je incCount
+    
+    cmp al, 0Ah
+    je nextIt
+    push ax
+    mov ax, rowCount
+    mov bx, 2d
+    xor dx, dx
+    div bx
+    pop ax
+    cmp dx, 0
+    je nextIt
 
-    cmp al, 0     ; Проверяем конец строки - 0
-    je endScan  
+    cmp al, 41h
+    jb nextIt
+    cmp al, 7Ah
+    ja nextIt
+    mov countWord, 0
+    push si
+    stosb
+innerLoop: ; по слову 
+    push bx
+    mov bx, countWord
+    inc bx
+    mov countWord, bx
+    pop bx
+    lodsb
+    cmp al, 41h
+    jb afterInnerLoop
+    cmp al, 7Ah
+    ja afterInnerLoop
+    jmp innerLoop
+afterInnerLoop:
+    pop si
+    mov ax, countWord
+    mov bx, 2d
+    xor dx, dx
+    div bx
+    cmp dx, 0
+    je notNeeded
+    add ax, 2
+    mov medium, ax
+    mov cx, countWord
+wordIsOdd:
+    lodsb
+    cmp cx, medium
+    je isMed
+    stosb
+    jmp nextItOdd
+isMed:
+    mov al, '!'
+    stosb
+nextItOdd:
+    loop wordIsOdd
+    jmp nextItmk1
+notNeeded:
+    lodsb
+    cmp al, 41h
+    jb nextIt
+    cmp al, 7Ah
+    ja nextIt
+    stosb
+    jmp notNeeded
 
-    cmp al, ','
-    je replace1
-
-    cmp al, '!'
-    je replace1
-
-    cmp al, '.'
-    je replace1
-
-    cmp al, '?'
-    je replace1
-
-    cmp al, ':'
-    je replace1
-
-    cmp al, ';'
-    je replace1  
-
-    stosb ; записываем ах в di 
-    jmp scanLoop ; переходим к следующему символу
-
-replace1:  
-    mov ax, count
+incCount:
+    push ax
+    mov ax, rowCount
     inc ax
-    mov count, ax    ; инкремент для счетчика замен
-    mov ax, ' ' ; заменяем символ на пробел
-    stosb   ; сохраняем пробел в строчке
-    jmp scanLoop    ; Переходим к следующему символу
+    mov rowCount, ax
+    pop ax
+nextIt:
+    stosb
+nextItmk1:
+    jmp loop1
 
-endScan:
-    mov ax, '$' ; добавляем конец строки для вывода на экран
-    stosb     ; Записываем символ $ в выходную строку
+endProcess:
+    mov al, '$'
+    stosb
 
     printstr endl
-    printstr endl
-
     printstr mStrOutput
     printstr endl
     printstr NewString
-
-    xor cx, cx
-    mov cx, index
-    dec cx
-    lea si, NewString  ; получаем указатель SI на начало строки
-    lea di, StringForFile   ; Указатель DI тоже на начало строки
-    rep movsb  ; Копируем строку кроме последнего элемента
-
-    mov ax, 32d
-    stosb
+    printstr endl
 
     mov ah, 40h 
     mov bx, FDescrNew 
-    mov cx, index 
-    mov dx, offset StringForFile 
+    mov cx, index
+    sub cx, 1
+    mov dx, offset NewString
     int 21h 
     jnc CloseFiles 
     jmp Er4 
-        
+
 CloseFiles:      
     ;закрытие исходного файла  
     mov ah, 3eh                           ;функция закрытия файла 
@@ -243,13 +241,6 @@ CloseFiles:
     mov ah, 3eh                           ;функция закрытия файла 
     mov bx, FDescrNew  
     int 21h 
-    
-    printstr endl
-    printstr endl
-    printstr MessageCount
-    mov ax, count
-    mWriteAX
-    printstr endl
 
     ;вывод сообщения об успешном выполнении программы 
     mov dx, offset MessageEnd
@@ -294,4 +285,5 @@ Exit:
     ;завершение программы 
     mov ax, 4c00h 
     int 21h 
+NOJUMPS
 end start 

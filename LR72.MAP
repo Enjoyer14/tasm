@@ -1,6 +1,2 @@
-
- Start  Stop   Length Name               Class
-
- 00000H 006F8H 006F9H SC                 CODE
-
+Fatal: 32-bit record encountered in library file lr72.com in lr72.com near module file offset 0x00000000
 
