@@ -1,4 +1,4 @@
-.486 
+.486
 model use16 small 
 .stack 100h 
 
@@ -24,21 +24,116 @@ one_third dd 0.33333 ; Число 1/3
 x2 dd 2.0
 x1 dd 1.0
 currX dd ?
-.code 
+EXIT db 0
+OLD_CS dw ?  
+OLD_IP dw ? 
+chastota dw 7000
+
+.code
+
+DELAY proc near 
+    push cx 
+    mov cx, 1 
+    d12: 
+    push cx 
+    xor cx,cx 
+    d11: 
+    nop 
+    loop d11 
+    pop cx 
+    loop d12 
+    pop cx 
+    ret 
+DELAY endp 
+
+NEW_1C proc far 
+    push ax ; сохранить все регистры 
+    push bx 
+    push cx 
+    push dx 
+    push ds 
+    push es 
+    ;Генерация звука
+    ;Устанавливаем частоту через таймер 8253
+    mov al, 10110110b ;управляющее слово: канал 2, режим 3
+    out 43h, al
+
+    mov ax, [chastota]
+    out 42h, al
+    mov al, ah        
+    out 42h, al 
+    ;включаем динамик
+    in al, 61h ; читаем порт управления
+    or al, 00000011b ;устанавливаем биты для включения канала 2
+    out 61h, al   
+
+    mov ax, @DATA  
+    mov ds, ax   
+    mov ax, 40h   
+    mov es, ax   
+    mov ax, es:[1ch] 
+    mov bx, es:[1ah] 
+    cmp bx , ax 
+    jne m5 
+    jmp back 
+
+m5: 
+    mov al, es:[bx] 
+    mov es:[1ch], bx 
+    cmp al, 30h 
+    jnz back 
+    mov EXIT, 1     
+    jmp back 
+back: 
+    mov ax, [chastota]
+    sub ax, 200       ; Уменьшаем частоту на 100
+    cmp ax, 300       ; Проверяем границу (не ниже 300)
+    ja freq_ok
+    mov ax, 7000      ; Сбросить на максимальную частоту
+freq_ok:
+    mov [chastota], ax      ; Сохраняем новую частоту
+    
+    pop es 
+    pop ds 
+    pop dx 
+    pop cx 
+    pop bx 
+    pop ax 
+    iret 
+NEW_1C endp
 
 start: 
 JUMPS
-    mov ax, @data 
+    mov ax, @DATA 
     mov ds, ax 
-    xor ax, ax  
-    mov al, 10h              
-    int 10h  
 
-    mov ax, 0600h ; ah = 06 - прокрутка вверх 
-    mov bh, 15 ;белый 
-    mov cx, 0000b ; ah = 00 - строка верхнуго левого угла 
-    mov dx, 184Fh  
-    int 10h               
+
+    xor ax, ax
+	mov al, 10h
+	int 10h
+
+    mov ax, 0600h
+	mov bh, 15
+	mov cx, 0000b
+	mov dx, 184Fh
+	int 10h
+    ; чтение вектора прерывания 
+    mov ah, 35h 
+    mov al, 1Ch 
+    int 21h 
+    mov OLD_IP, bx 
+    mov OLD_CS, es 
+    ; установка вектора прерывания 
+    push ds 
+    mov dx, offset NEW_1C 
+    mov ax, seg NEW_1C 
+    mov ds, ax 
+    mov ah, 25h 
+    mov al, 1Ch 
+    int 21h 
+    pop ds 
+    mov ax, 0B800h 
+    mov es, ax                
 
     mov ah, 0Ch   ;установка графической точки 
     mov al, 10  ;загружаем зелѐный цвет для вертикальной линии
@@ -67,6 +162,8 @@ metka2:
 
 metka3:
     finit
+    cmp EXIT, 0 
+    jne endProg
     push cx
     sub cx, medX
     mov x, cx
@@ -209,22 +306,35 @@ point:
     int  1ah
     mov  bx, dx
     add  bx, si
-delay_loop:
-    int  1ah
-    cmp  dx, bx
-    jne  delay_loop
+    call DELAY
 
 	popa
+
 	jmp fnsh_iter
 
 fnsh_iter:
 	loop metka3
 
-fnsh:
-	mov ah, 8h
-	int 21h
-	mov ax, 4c00h
-	int 21h
+endProg:
+	mov dx, OLD_IP 
+    mov ax, OLD_CS 
+    mov ds, ax 
+    mov ah, 25h 
+    mov al, 1Ch 
+    int 21h 
+
+    mov ah, 2
+	mov dh, 0
+	mov dl, 0
+	mov bh, 0
+	int 10h
+    
+    in al, 61h    
+    and al, 0FCh
+    out 61h, al
+
+    mov ax, 4c00h 
+    int 21h
     NOJUMPS
 end start
 end

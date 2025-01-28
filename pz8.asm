@@ -1,51 +1,18 @@
-.model small
-.STACK 100h
+data segment
 
-mRandomAX MACRO min, max
+DIRECT db 1  
+EXIT db 0   
+SYM db "@"  
+ATRIBUT1 db 14  
+ATRIBUT2 db 10  
+POS dw 3840  
+OLD_CS dw ?  
+OLD_IP dw ?   
+data ends 
 
-    MOV AH, 00h        ; Функция 00h: получить системное время
-    INT 1Ah            ; После вызова CX:DX содержит количество тиков с полуночи
-
-    XOR AX, AX         ; Обнуляем AX
-    MOV AX, DX         ; Используем DX (младшая часть таймера) для генерации
-    SUB AX, min        ; Сдвигаем диапазон на мин
-
-    MOV BX, max
-    SUB BX, min        ; BX = (max - min)
-    INC BX             ; BX = (max - min + 1), чтобы включить max в диапазон
-
-    XOR DX, DX         ; Обнуляем DX
-    DIV BX             ; AX = AX / BX; остаток в DX
-
-    MOV AX, DX         ; Переносим остаток в AX, это число в диапазоне [0, max-min]
-    ADD AX, min        ; Смещаем диапазон обратно на min
-
-ENDM
-
-
-
-data segment 
-    min dw 1
-    max dw 8
-    minSh dw 0
-    minSw dw 0
-    maxSh dw 25
-    maxSw dw 80
-    minEl dw 1
-    maxEl dw 255
-    DIRECT db 1  
-    EXIT db 0   
-    SYM db ? 
-    ATRIBUT1 db 14  
-    ATRIBUT2 db 10 
-    Color db ? 
-    POS dw 3840  
-    OLD_CS dw ?  
-    OLD_IP dw ?
-
-data ends
 code segment 
 assume cs:code, ds:data 
+
 NEW_1C proc far 
     push ax ; сохранить все регистры 
     push bx 
@@ -62,43 +29,17 @@ NEW_1C proc far
     cmp bx , ax 
     jne m5 
     jmp back 
+
 m5: 
     mov al, es:[bx] 
     mov es:[1ch], bx 
     cmp al, 30h 
-    jnz m1 
+    jnz back 
     mov EXIT, 1 
     jmp back 
-
 m1: 
-    cmp al, 35h 
-    jne m6 
-    mRandomAX minSw, maxSw
-    mov dl, al 
-    mRandomAX minSh, maxSh
-    mov dh, ah
-    mov ATRIBUT1, dh 
-    mov ATRIBUT2, dl 
     jmp back 
-m6: 
-    cmp al, 38h   
-    jz m2 
-    cmp al, 32h    
-    jz m3 
-    cmp al, 34h    
-    jz m4 
-    cmp al, 36h    
-    jnz back    
-    mov DIRECT, 3 
-    jmp back 
-m2: 
-    mov DIRECT, 1 
-    jmp back 
-m3: 
-    mov DIRECT, 4 
-    jmp back 
-m4: 
-    mov DIRECT, 2 
+
 back: 
     pop es 
     pop ds 
@@ -113,6 +54,7 @@ CLS proc near
     push cx 
     push ax 
     push si 
+
     xor si, si 
     mov ah, 7 
     mov dl, ' ' 
@@ -122,19 +64,21 @@ CL1:
     inc si 
     inc si 
     loop CL1 
+
     pop si 
     pop ax 
     pop cx 
     ret 
 CLS endp 
 
+; Подпрограмма задержки 
 DELAY proc near 
     push cx 
-    mov cx, 25 
-    d12: 
+    mov cx, 100 
+d12: 
     push cx 
     xor cx,cx 
-    d11: 
+d11: 
     nop 
     loop d11 
     pop cx 
@@ -146,27 +90,17 @@ DELAY endp
 OUT_SYMBOL proc near 
     push ax 
     push bx 
-    mRandomAX minEl, maxEl
-    mov SYM, al
-    mRandomAX min, max
-    mov Color, al
-    mov al, SYM
-    mov ah, Color
-    push ax 
-    mRandomAX minSw, maxSw
-    mov bl, al 
-    mRandomAX minSh, maxSh
-    mov bh, ah
+    mov al, SYM 
+    mov ah, ATRIBUT1 
+    mov bx, POS 
     call DELAY 
-    pop ax
     mov es:[bx], ax 
     pop bx 
     pop ax 
     ret 
 OUT_SYMBOL endp 
-
+; Основная программа 
 START: 
-JUMPS
     mov ax, DATA 
     mov ds, ax 
     ; чтение вектора прерывания 
@@ -197,7 +131,7 @@ p1:
     jz p3 
     cmp DIRECT, 3 
     jz p4 
-    mRandomAX min, POS 
+    mov ax, POS 
     add ax,160 
     cmp ax, 3999 
     jg p1 
@@ -205,29 +139,28 @@ p1:
     call OUT_SYMBOL 
     jmp p1 
 p2: 
-    mRandomAX min, POS 
-    add ax,160 
+    mov ax, POS 
     sub ax, 160 
     jl p1 
     mov POS, ax 
     call OUT_SYMBOL 
     jmp p1 
 p3: 
-    mRandomAX min, POS 
-    add ax,160 
+    mov ax, POS 
     sub ax, 2 
     jl p1 
     mov POS, ax 
     call OUT_SYMBOL 
-    jmp p1 
+    jmp p1
+
 p4: 
-    mRandomAX min, POS 
-    add ax,160 
+    mov ax, POS 
     add ax, 2 
     jg p1 
     mov POS, ax 
     call OUT_SYMBOL 
     jmp p1 
+
 quit: 
     call CLS 
     mov dx, OLD_IP 
@@ -235,9 +168,8 @@ quit:
     mov ds, ax 
     mov ah, 25h 
     mov al, 1Ch 
-    int 21h
+    int 21h 
     mov ax, 4c00h 
     int 21h 
-NOJUMPS
 CODE ends 
 end START 

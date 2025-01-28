@@ -452,7 +452,7 @@ pause macro
     mov ah, 08h
     int 21h
 endm
-
+;задание а = в
 .model small
 .stack 100h
 .data

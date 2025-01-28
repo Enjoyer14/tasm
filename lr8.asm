@@ -16,6 +16,8 @@
 	y_correction dw 174
 	n6 dw 6
 	n3 dw 3
+	pi dw 2000   ; Начальная частота для таймера (чем меньше значение, тем выше звук)
+
 
 	first dd ?
 	second dd ?
@@ -35,6 +37,7 @@ JUMPS
 	mov cx, 0000b
 	mov dx, 184Fh
 	int 10h
+
 	mov ah, 0Ch
 	mov al, 10
 	mov bh, 0h

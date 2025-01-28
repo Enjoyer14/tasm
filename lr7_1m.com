@@ -1,5 +1,5 @@
 sc  segment 'code'
-    assume  cs:sc, ds:sc, es:sc 
+    assume  cs:sc, ds:sc, es:sc
     org 256  
  
 start proc 
