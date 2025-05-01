@@ -456,12 +456,12 @@ enterMatr:
 jmp menuLoop
 
 printMatr:
-printstr endl
-printstr sMatr
-printstr endl
-mWriteMatrix matr, row, col
-printstr endl
-pause
+    printstr endl
+    printstr sMatr
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
+    pause
 jmp menuLoop
 
 taskTranspose:
