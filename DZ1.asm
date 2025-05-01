@@ -1,10 +1,10 @@
 printstr macro msg
-    push ax
+    push ax   
     push dx
-	mov ah, 09h
-	mov dx, msg
-	int 21h
-    pop dx
+    lea dx, msg      
+    mov ah, 09h    
+    int 21h   
+    pop dx 
     pop ax
 endm
 
@@ -195,16 +195,14 @@ colLoop:                    ; Внутренний цикл, проходящи�
                   ; Вывод текущего элемента матрицы 
     xor ax, ax 
     push bx
-    mov bx, offset tab
-    printstr bx ; Макрос вывода строки на экран Приложение 3
+    printstr tab ; Макрос вывода строки на экран Приложение 3
     pop bx         ; Вывод на экран табуляции, разделяющей элементы строки 
  
     add si, 2         ; Переходим к следующему элементу (размером в слово) 
     loop colLoop 
     
     push bx
-    mov bx, offset endl
-    printstr bx   ; Макрос вывода строки на экран Приложение 3
+    printstr endl   ; Макрос вывода строки на экран Приложение 3
     pop bx                  ; Перенос курсора и каретки на следующую строку 
     
     add bx, col       ; Увеличиваем смещение по строкам  
@@ -340,8 +338,7 @@ skipSum:
     add bx, col         ; Увеличиваем смещение по строкам; Переход к следующей строке  
     add bx, col         ; (дважды, так как размер каждого элемента - слово) 
     push bx
-    mov bx, offset endl
-    printstr bx      ; Перенос строки
+    printstr endl      ; Перенос строки
     pop bx
     pop cx 
     loop rowLoop 
@@ -405,15 +402,13 @@ nextIter:
     add si, 2         ; Переходим к следующему элементу (размером в слово) 
     loop colLoop 
 
-    ; Если чередование знаков не нарушилось, выводим true
-    mov bx, offset sTrue
-    printstr bx
+    ; Если чередование знаков не нарушилось, выводим true 
+    printstr sTrue
     jmp exit
 
 falseExit:
     ; Если знаки не чередуются, выводим false
-    mov bx, offset sFalse
-    printstr bx
+    printstr sFalse
 
 exit:
     pop si            ; Перенос сохранённых значений обратно в регистры  
@@ -458,18 +453,16 @@ rowLoop:
 findNZero:
     push bx
 
+    printstr sRow
+
     mov ax, dx
     mWriteAX
     xor dx, dx
-    
-    mov bx, offset tab
-    printstr bx
-
+    printstr tab
+    printstr sCol
     mov ax, di
     mWriteAX
-
-    mov bx, offset endl
-    printstr bx
+    printstr endl
 
     pop bx
     jmp nextCol
@@ -487,14 +480,22 @@ nextCol:
 NOJUMPS
 endm
 
+pause macro 
+    printstr endl
+    mov ah, 08h
+    int 21h
+endm
+
 
 .model small
 .stack 100h
 .data
-matr dw 5 dup(5 dup (?))
-tMatr dw 5 dup(5 dup(?))
-row dw 5d
-col dw 5d
+matr dw 15 dup(15 dup (?))
+tMatr dw 15 dup(15 dup(?))
+row dw ?
+col dw ?
+trow dw ?
+tcol dw ?
 tab db '	$'
 endl db 0Dh, 0Ah, '$'
 buffer db ?
@@ -502,12 +503,21 @@ sTask1 db ' Transpose matrix: $'
 sMatr db 'Matrix: $'
 sTask2A db 'Summa(po strokam): $'
 sTask2b db 'Enter row: $'
-sTask2c db 'Index of first non zero elemnt: $'
+sTask2c db 'Index of first zero elemnt: $'
 inputRow dw ?
 foundNegative db ?
 sum dw 0
+sMenu db '1. Enter matrix', 0Dh, 0Ah, '2. Print matrix', 0Dh, 0Ah, '3. Transpose matrix', 0Dh, 0Ah, '4. Sum after negative', 0Dh, 0Ah, '5. Alternates Signs', 0Dh, 0Ah, '6. Find first zero', 0Dh, 0Ah,'0. Exit', 0Dh, 0Ah, '$'
+sChoose db 'Enter your choice: $'
+sError db 'Invalid choice! Try again. $'
+sInputMatr db 'Enter Matr $'
 sTrue db 'True $'
 sFalse db 'False $'
+sInputR db 'Enter number of rows: $'
+sInputC db "Enter number of cols: $"
+sRow db 'Row: $'
+sCol db 'Col: $'
+
 .code
 start:
 	mov ax, @data
@@ -517,51 +527,122 @@ start:
 
 	setcursor 0, 0, 0, 0
 
-	mReadMatrix matr, row, col
 
-    mov bx, offset sMatr
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mWriteMatrix matr, row, col
+	printstr sInputR
+    mReadAX buffer, 3
+    mov row, ax
+    mov tcol, ax
+    xor ax, ax
+    printstr sInputC
+    mReadAX buffer, 3
+    mov col, ax
+    mov trow, ax
+    xor ax, ax
+    printstr sInputMatr
+    printstr endl
+    mReadMatrix matr, row, col, maxMatr
 
-    mov bx, offset sTask1
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mTransposeMatrix matr, row, col, tMatr
-	
-	mWriteMatrix tMatr, row, col
+menuLoop:
+    wipescreen
+    printstr sMenu
+    printstr endl
+    printstr sChoose
 
-    mov bx, offset sTask2A
-    printstr bx
-    mov bx, offset endl
-    printstr bx
+    mReadAX buffer, 2
 
+    JUMPS
+    cmp ax, 1
+    je enterMatr
+    cmp ax, 2
+    je printMatr
+    cmp ax, 3
+    je taskTranspose
+    cmp ax, 4
+    je taskSumAfterNeg
+    cmp ax, 5
+    je taskIsAlternatesSigns
+    cmp ax, 6
+    je taskFindFirstZero
+    cmp ax, 0
+    je exitProgram
+    jmp menuLoop
+enterMatr:
+    xor ax, ax
+    printstr sInputR
+    mReadAX buffer, 3
+    mov row, ax
+    mov tcol, ax
+    xor ax, ax
+    printstr sInputC
+    mReadAX buffer, 3
+    mov col, ax
+    mov trow, ax
+    xor ax, ax
+    printstr sInputMatr
+    printstr endl
+    mReadMatrix matr, row, col, maxMatr
+    jmp menuLoop
+
+printMatr:
+    printstr endl
+    printstr sMatr
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
+    pause
+    jmp menuLoop
+
+taskTranspose:
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
+
+    printstr sTask1
+    printstr endl
+    mTransposeMatrix matr, row, col, tMatr
+    mWriteMatrix tMatr, trow, tcol
+    pause
+    jmp menuLoop
+
+
+taskSumAfterNeg:
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
+
+    printstr sTask2A
+    printstr endl
+    
     mSumAfterNeg matr, row, col, foundNegative
+    pause
+    jmp menuLoop
 
-    mov bx, offset sTask2b
-    printstr bx
+taskIsAlternatesSigns:
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
+
+    printstr sTask2b
     mReadAX buffer, 3
     mov inputRow, ax
     mIsAlternatesSigns matr, row, col, inputRow, foundNegative
+    pause
+    jmp menuLoop
     
-    mov bx, offset endl
-    printstr bx
-    mov bx, offset sMatr
-    printstr bx
-    mov bx, offset endl
-    printstr bx
-	mWriteMatrix matr, row, col
+taskFindFirstZero:
+    printstr sTask2c
+    printstr endl
+    printstr endl
+    mWriteMatrix matr, row, col
+    printstr endl
+    printstr endl
 
-    mov bx, offset endl
-    printstr bx
-    mov bx, offset sTask2c
-    printstr bx
-    mov bx, offset endl
-    printstr bx
     mFindFirstNonZero matr, row, col
+    pause
+    jmp menuLoop
 
+exitProgram:
+    NOJUMPS
     mov ax, 4c00h
 	int 21h
 end start

@@ -1,0 +1,35 @@
+sc  segment 'code'
+    assume  cs:sc, ds:sc, es:sc 
+    org 256  
+ 
+start proc 
+    ;ctrl C + ctrl V кода сюда
+
+
+;data
+;ctrl C + ctrl V сегмента data сюда
+
+CR = 0Dh 
+LF = 0Ah 
+FileName db "task.txt0", "$"           ;имя файла в формате ASCIIZ строки 
+FDescr dw ?                                ;ячейка для хранения дисриптора 
+NewFile db "answer.txt0", "$" 
+FDescrNew dw ?                             ;для хранения дискриптора нового 
+Buffer dw ?                                ;буфер для хранения символа строки 
+String db 1024 dup(0)                        ;буфер для хранения строки 
+NewString db 1024 dup(0)
+index dw 0                                 ;впомогательная переменная  
+endl db 0Dh, 0Ah, '$'  
+MessageError1 db CR, LF, "File was not opened !", "$"         
+MessageError2 db CR, LF, "File was not read !", "$" 
+MessageError3 db CR, LF, "File was not founded!", "$" 
+MessageError4 db CR, LF, "File was not created!", "$" 
+MessageError5 db CR, LF, "Error in writing in the file!", "$" 
+MessageEnd db CR, LF, "Program was successfully finished!", "$" 
+mStrInput db 'Input file: $'
+mStrOutput db 'Output file: $'
+
+
+start endp
+sc ends
+end start

@@ -86,11 +86,10 @@ FileName db "task1.txt0", "$"           ;имя файла в формате ASC
 FDescr dw ?                                ;ячейка для хранения дисриптора 
 NewFile db "answer.txt0", "$" 
 FDescrNew dw ?                             ;для хранения дискриптора нового 
-файла 
 Buffer dw ?                                ;буфер для хранения символа строки 
-String db 256 dup(0)                        ;буфер для хранения строки 
-NewString db 256 dup(0)
-StringForFile db 256 dup(0)
+String db 1024 dup(0)                        ;буфер для хранения строки 
+NewString db 1024 dup(0)
+StringForFile db 1024 dup(0)
 index dw 0                                 ;впомогательная переменная  
 endl db 0Dh, 0Ah, '$'  
 MessageError1 db CR, LF, "File was not opened !", "$"         
@@ -99,6 +98,7 @@ MessageError3 db CR, LF, "File was not founded!", "$"
 MessageError4 db CR, LF, "File was not created!", "$" 
 MessageError5 db CR, LF, "Error in writing in the file!", "$" 
 MessageEnd db CR, LF, "Program was successfully finished!", "$" 
+MessageCount db 'Number of zamen = $'
 mStrInput db 'Input file: $'
 mStrOutput db 'Output file: $'
 ;=========================== 
@@ -145,7 +145,7 @@ ReadFile:
     jmp Er2                      ;если ошибка -> выход         
     M3: 
         cmp ax, 0 ;если ax=0(число считанных байтов) -> файл кончился -> выход 
-        je WriteToFile                         ;если ax=0 -> sf=1 
+        je WriteToFile
         mov ax, Buffer 
         mov bx, index 
         mov String[bx], al 
@@ -154,7 +154,7 @@ ReadFile:
     jmp ReadFile 
  
 WriteToFile:
-    mov ax, '$'
+    mov ax, '$' ; записываем $ для корректного вывода на экран
     mov bx, index 
     mov String[bx], al
     inc bx 
@@ -164,46 +164,49 @@ WriteToFile:
     printstr endl
     printstr String
 Task:
-    lea si, String                    ; Указатель на начало исходной строки
-    lea di, NewString                 ; Указатель на начало выходной строки
+    lea si, String    ;указатель на начало исходной строки
+    lea di, NewString   ; указатель на начало выходной строки
 
 scanLoop:
-    lodsb                            ; Загружаем слово из [SI] в AX
-    cmp al, '$'                       ; Проверяем конец строки (символ '$')
-    je endScan                       ; Если символ '$', заканчиваем обработку
+    lodsb        ; загрузка символа из si в ах
+    cmp al, '$'  ;проверяем конец строки (символ $)
+    je endScan ; Если символ '$' то конец
 
-    cmp al, 0                      ; Проверяем конец строки (символ '$')
+    cmp al, 0     ; Проверяем конец строки - 0
     je endScan  
 
-    cmp al, ','                       ; Проверка: AX = ','
-    je replace1                   ; Если да, заменяем
+    cmp al, ','
+    je replace1
 
-    cmp al, '!'                       ; Проверка: AX = '!'
-    je replace1                   ; Если да, заменяем
+    cmp al, '!'
+    je replace1
 
-    cmp al, '.'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, '.'
+    je replace1
 
-    cmp al, '?'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, '?'
+    je replace1
 
-    cmp al, ':'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, ':'
+    je replace1
 
-    cmp al, ';'                       ; Проверка: AX = '.'
-    je replace1                   ; Если да, заменяем
+    cmp al, ';'
+    je replace1  
 
-    stosb                            ; Если символ не знак препинания, записываем его
-    jmp scanLoop                     ; Переход к следующему символу
+    stosb ; записываем ах в di 
+    jmp scanLoop ; переходим к следующему символу
 
-replace1:
-    mov ax, ' '                       ; Заменяем символ на пробел
-    stosb                            ; Записываем пробел
-    jmp scanLoop                     ; Переход к следующему символу
+replace1:  
+    mov ax, count
+    inc ax
+    mov count, ax    ; инкремент для счетчика замен
+    mov ax, ' ' ; заменяем символ на пробел
+    stosb   ; сохраняем пробел в строчке
+    jmp scanLoop    ; Переходим к следующему символу
 
 endScan:
-    mov ax, '$'                       ; Конец строки
-    stosb                             ; Записываем символ '$' в выходную строку
+    mov ax, '$' ; добавляем конец строки для вывода на экран
+    stosb     ; Записываем символ $ в выходную строку
 
     printstr endl
     printstr endl
@@ -212,14 +215,12 @@ endScan:
     printstr endl
     printstr NewString
 
-    int 03h
-
     xor cx, cx
     mov cx, index
     dec cx
-    lea si, NewString                 ; Возвращаем указатель SI на начало строки
-    lea di, StringForFile                 ; Указатель DI тоже на начало строки
-    rep movsb                         ; Копируем строку, кроме последнего элемента
+    lea si, NewString  ; получаем указатель SI на начало строки
+    lea di, StringForFile   ; Указатель DI тоже на начало строки
+    rep movsb  ; Копируем строку кроме последнего элемента
 
     mov ax, 32d
     stosb
@@ -242,9 +243,16 @@ CloseFiles:
     mov ah, 3eh                           ;функция закрытия файла 
     mov bx, FDescrNew  
     int 21h 
-       
+    
+    printstr endl
+    printstr endl
+    printstr MessageCount
+    mov ax, count
+    mWriteAX
+    printstr endl
+
     ;вывод сообщения об успешном выполнении программы 
-    mov dx, offset MessageEnd 
+    mov dx, offset MessageEnd
     print_string 
     jmp Exit  
        
